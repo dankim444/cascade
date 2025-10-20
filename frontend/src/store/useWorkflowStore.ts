@@ -96,9 +96,21 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   // Dataset actions
   addDataset: (dataset: Dataset) => {
-    set((state) => ({
-      datasets: [...state.datasets, dataset]
-    }));
+    set((state) => {
+      // Also create a data connection for this dataset
+      const newDataConnection: DataConnection = {
+        dataKey: dataset.dataKey,
+        sqlConnection: `data/${dataset.dataKey}.db`, // This will be handled by backend
+        schema: { columns: dataset.columns },
+        rowCount: dataset.rowCount,
+        lastAccessed: new Date()
+      };
+      
+      return {
+        datasets: [...state.datasets, dataset],
+        dataConnections: [...state.dataConnections, newDataConnection]
+      };
+    });
   },
 
   setSelectedDataset: (datasetId: string | null) => {
@@ -144,10 +156,65 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
 
   executePipeline: async () => {
     const state = get();
-    const pipeline = {
-      nodes: state.nodes,
-      dataConnections: state.dataConnections
+    
+    // Build execution order based on edges
+    const buildExecutionOrder = () => {
+      const nodes = state.nodes;
+      const edges = state.edges;
+      
+      // Find root nodes (no incoming edges)
+      const nodeIds = new Set(nodes.map(n => n.id));
+      const nodesWithIncoming = new Set(edges.map(e => e.target));
+      const rootNodes = nodes.filter(n => !nodesWithIncoming.has(n.id));
+      
+      // If no edges, just return nodes in order
+      if (edges.length === 0) {
+        return nodes;
+      }
+      
+      // Simple topological sort
+      const visited = new Set<string>();
+      const result: Node[] = [];
+      
+      const visit = (nodeId: string) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+        
+        // Visit all nodes this one depends on (incoming edges)
+        const incomingEdges = edges.filter(e => e.target === nodeId);
+        incomingEdges.forEach(edge => visit(edge.source));
+        
+        // Add this node
+        const node = nodes.find(n => n.id === nodeId);
+        if (node) result.push(node);
+      };
+      
+      // Visit all nodes
+      nodes.forEach(n => visit(n.id));
+      
+      return result;
     };
+    
+    const orderedNodes = buildExecutionOrder();
+    
+    // Create pipeline with ordered nodes and data connections
+    const pipeline = {
+      nodes: orderedNodes.map(node => ({
+        id: node.id,
+        transform: node.transform,
+        data: node.data,
+        parent: state.edges.find(e => e.target === node.id)?.source,
+        child: state.edges.find(e => e.source === node.id)?.target
+      })),
+      dataConnections: state.dataConnections.map(dc => ({
+        dataKey: dc.dataKey,
+        sqlConnection: dc.sqlConnection,
+        schema: dc.schema,
+        rowCount: dc.rowCount
+      }))
+    };
+    
+    console.log('Executing pipeline:', pipeline);
     
     try {
       const response = await fetch('http://localhost:8000/api/transformations/run', {
@@ -159,10 +226,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();
+      console.log('Pipeline execution result:', result);
       return result;
     } catch (error) {
       console.error('Pipeline execution failed:', error);

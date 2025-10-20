@@ -40,19 +40,21 @@ class TransformationExecutor:
                 current_data_key = result['output_data_key']
                 execution_results.append(result)
             
-            # Get final result
-            final_result = self._get_final_result(current_data_key)
-            
-            return {
-                "status": "success",
-                "message": "Pipeline executed successfully",
-                "executionTime": "0.5s",  # TODO: Calculate actual time
-                "outputRows": final_result['row_count'],
-                "outputData": final_result['preview'],
-                "outputSchema": final_result['schema'],
-                "timestamp": datetime.now().isoformat(),
-                "executionResults": execution_results
-            }
+            # Get final result from the last execution
+            if execution_results:
+                final_result = execution_results[-1]
+                return {
+                    "status": "success",
+                    "message": "Pipeline executed successfully",
+                    "executionTime": "0.5s",  # TODO: Calculate actual time
+                    "outputRows": final_result['row_count'],
+                    "data": final_result['preview'],  # Changed from outputData to data
+                    "outputSchema": final_result.get('output_schema', []),
+                    "timestamp": datetime.now().isoformat(),
+                    "executionResults": execution_results
+                }
+            else:
+                raise ValueError("No transformations were executed")
             
         except Exception as e:
             return {
@@ -89,23 +91,31 @@ class TransformationExecutor:
             return self._execute_groupby(input_conn, params)
         elif operation == 'join':
             return self._execute_join(input_conn, params, data_connections)
+        elif operation == 'sort':
+            return self._execute_sort(input_conn, params)
+        elif operation == 'rename':
+            return self._execute_rename(input_conn, params)
+        elif operation == 'calculate':
+            return self._execute_calculate(input_conn, params)
         else:
             raise ValueError(f"Unsupported operation: {operation}")
     
     def _execute_select(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
         """Execute SELECT transformation"""
-        columns = json.loads(params[0]) if params else []
-        
-        if not columns:
-            raise ValueError("No columns specified for SELECT operation")
+        config = json.loads(params[0]) if params else {}
+        columns = config.get('columns', []) if isinstance(config, dict) else config
         
         # Connect to database
         conn = sqlite3.connect(input_conn['sqlConnection'])
         cursor = conn.cursor()
         
-        # Build SELECT query
-        columns_str = ', '.join(columns)
-        query = f"SELECT {columns_str} FROM data"
+        # If no columns specified or empty list, select all columns
+        if not columns:
+            query = "SELECT * FROM data"
+        else:
+            # Build SELECT query
+            columns_str = ', '.join(columns)
+            query = f"SELECT {columns_str} FROM data"
         
         # Execute query
         cursor.execute(query)
@@ -417,6 +427,196 @@ class TransformationExecutor:
             'row_count': 100,
             'preview': [],
             'schema': []
+        }
+    
+    def _execute_sort(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute SORT transformation"""
+        sort_config = json.loads(params[0]) if params else {}
+        
+        if not sort_config:
+            raise ValueError("No sort configuration provided")
+        
+        column = sort_config.get('column', '')
+        ascending = sort_config.get('ascending', True)
+        
+        if not column:
+            raise ValueError("No column specified for SORT operation")
+        
+        # Connect to database
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        cursor = conn.cursor()
+        
+        # Build ORDER BY query
+        order = 'ASC' if ascending else 'DESC'
+        query = f"SELECT * FROM data ORDER BY {column} {order}"
+        
+        # Execute query
+        cursor.execute(query)
+        results = cursor.fetchall()
+        column_names = [desc[0] for desc in cursor.description]
+        
+        # Get schema info
+        cursor.execute("PRAGMA table_info(data)")
+        schema_info = cursor.fetchall()
+        
+        # Create output data key
+        output_data_key = f"sort_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        
+        # Create new database with results
+        output_conn = sqlite3.connect(output_db_path)
+        df = pd.DataFrame(results, columns=column_names)
+        df.to_sql('data', output_conn, if_exists='replace', index=False)
+        
+        # Get preview data
+        preview_data = []
+        for row in results[:10]:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[column_names[i]] = value
+            preview_data.append(row_dict)
+        
+        row_count = len(results)
+        
+        conn.close()
+        output_conn.close()
+        
+        return {
+            'node_id': 'sort_node',
+            'operation': 'sort',
+            'output_data_key': output_data_key,
+            'output_schema': [{"name": col[1], "type": self._map_sqlite_type(col[2]), "nullable": not col[3]} for col in schema_info],
+            'row_count': row_count,
+            'preview': preview_data
+        }
+    
+    def _execute_rename(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute RENAME transformation"""
+        rename_config = json.loads(params[0]) if params else {}
+        
+        if not rename_config:
+            raise ValueError("No rename configuration provided")
+        
+        # rename_config should be like: {"old_name": "new_name", ...}
+        
+        # Connect to database
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        
+        # Read all data
+        df = pd.read_sql_query("SELECT * FROM data", conn)
+        
+        # Rename columns
+        df = df.rename(columns=rename_config)
+        
+        column_names = df.columns.tolist()
+        results = df.values.tolist()
+        
+        # Create output data key
+        output_data_key = f"rename_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        
+        # Create new database with results
+        output_conn = sqlite3.connect(output_db_path)
+        df.to_sql('data', output_conn, if_exists='replace', index=False)
+        
+        # Get preview data
+        preview_data = []
+        for row in results[:10]:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[column_names[i]] = value
+            preview_data.append(row_dict)
+        
+        row_count = len(results)
+        
+        # Create output schema
+        output_schema = []
+        for col_name in column_names:
+            output_schema.append({
+                "name": col_name,
+                "type": "string",
+                "nullable": True
+            })
+        
+        conn.close()
+        output_conn.close()
+        
+        return {
+            'node_id': 'rename_node',
+            'operation': 'rename',
+            'output_data_key': output_data_key,
+            'output_schema': output_schema,
+            'row_count': row_count,
+            'preview': preview_data
+        }
+    
+    def _execute_calculate(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute CALCULATE transformation - add a new calculated column"""
+        calc_config = json.loads(params[0]) if params else {}
+        
+        if not calc_config:
+            raise ValueError("No calculate configuration provided")
+        
+        new_column = calc_config.get('newColumn', 'calculated')
+        expression = calc_config.get('expression', '')
+        
+        if not expression:
+            raise ValueError("No expression provided for CALCULATE operation")
+        
+        # Connect to database
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        
+        # Read all data
+        df = pd.read_sql_query("SELECT * FROM data", conn)
+        
+        # Add calculated column
+        # For safety, we'll use eval but in a limited context
+        # In production, you'd want to parse and validate the expression
+        try:
+            df[new_column] = df.eval(expression)
+        except Exception as e:
+            raise ValueError(f"Failed to evaluate expression: {str(e)}")
+        
+        column_names = df.columns.tolist()
+        results = df.values.tolist()
+        
+        # Create output data key
+        output_data_key = f"calculate_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        
+        # Create new database with results
+        output_conn = sqlite3.connect(output_db_path)
+        df.to_sql('data', output_conn, if_exists='replace', index=False)
+        
+        # Get preview data
+        preview_data = []
+        for row in results[:10]:
+            row_dict = {}
+            for i, value in enumerate(row):
+                row_dict[column_names[i]] = value
+            preview_data.append(row_dict)
+        
+        row_count = len(results)
+        
+        # Create output schema
+        output_schema = []
+        for col_name in column_names:
+            output_schema.append({
+                "name": col_name,
+                "type": "number" if col_name == new_column else "string",
+                "nullable": True
+            })
+        
+        conn.close()
+        output_conn.close()
+        
+        return {
+            'node_id': 'calculate_node',
+            'operation': 'calculate',
+            'output_data_key': output_data_key,
+            'output_schema': output_schema,
+            'row_count': row_count,
+            'preview': preview_data
         }
     
     def _map_sqlite_type(self, sqlite_type: str) -> str:

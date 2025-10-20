@@ -1,10 +1,8 @@
-import React from 'react';
-import { Layout } from './components/Layout';
+import { SimpleLayout } from './components/SimpleLayout';
 import './App.css';
 
 function App() {
-  // Force refresh to clear module cache
-  return <Layout />;
+  return <SimpleLayout />;
 }
 
 export default App;

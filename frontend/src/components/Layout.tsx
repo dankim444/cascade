@@ -3,31 +3,49 @@ import { Menu, X, Upload, Play, Save } from 'lucide-react';
 import { NodePalette } from './NodePalette';
 import { DataUpload } from './DataUpload';
 import WorkflowEditor from './WorkflowEditor';
+import { DebugPanel } from './DebugPanel';
+import { ResultsViewer } from './ResultsViewer';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 
 export const Layout: React.FC = () => {
   const [showPalette, setShowPalette] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
-  const { datasets, savePipeline, executePipeline } = useWorkflowStore();
+  const [showResults, setShowResults] = useState(false);
+  const [isExecuting, setIsExecuting] = useState(false);
+  const [executionResult, setExecutionResult] = useState<any>(null);
+  const { datasets, nodes, savePipeline, executePipeline } = useWorkflowStore();
 
   const handleUploadComplete = () => {
     setShowUpload(false);
   };
 
   const handleRunPipeline = async () => {
+    if (nodes.length === 0) {
+      alert('Please add some transform nodes to your pipeline first.');
+      return;
+    }
+
+    setIsExecuting(true);
+    setExecutionResult(null);
+    
     try {
       console.log('Running pipeline...');
       const result = await executePipeline();
       console.log('Pipeline result:', result);
       
-      if (result.status === 'success') {
-        alert(`Pipeline executed successfully! Output: ${result.outputRows} rows`);
-      } else {
-        alert(`Pipeline failed: ${result.message}`);
-      }
-    } catch (error) {
+      setExecutionResult(result);
+      setShowResults(true); // Show results viewer instead of alert
+      
+    } catch (error: any) {
       console.error('Pipeline execution error:', error);
-      alert('Pipeline execution failed. Check console for details.');
+      setExecutionResult({ 
+        status: 'error', 
+        error: error.message || 'Unknown error',
+        detail: error.toString()
+      });
+      setShowResults(true); // Show error in results viewer
+    } finally {
+      setIsExecuting(false);
     }
   };
 
@@ -51,10 +69,24 @@ export const Layout: React.FC = () => {
           
           <button
             onClick={handleRunPipeline}
-            className="flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            disabled={isExecuting || nodes.length === 0}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+              isExecuting || nodes.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700'
+            } text-white`}
           >
-            <Play className="h-4 w-4" />
-            <span>Run Pipeline</span>
+            {isExecuting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                <span>Running...</span>
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                <span>Run Pipeline</span>
+              </>
+            )}
           </button>
           
           <button
@@ -121,6 +153,17 @@ export const Layout: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Results Viewer Modal */}
+      {showResults && executionResult && (
+        <ResultsViewer
+          result={executionResult}
+          onClose={() => setShowResults(false)}
+        />
+      )}
+
+      {/* Debug Panel - Remove this in production */}
+      <DebugPanel />
     </div>
   );
 };
