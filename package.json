@@ -1,0 +1,28 @@
+{
+  "name": "cascade",
+  "version": "1.0.0",
+  "description": "Cascade - Collaborative No-Code Data Platform",
+  "scripts": {
+    "start": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "dev": "npm run start",
+    "frontend": "cd frontend && npm run dev",
+    "backend": "cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000",
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
+    "setup": "npm run install-all",
+    "build": "cd frontend && npm run build",
+    "test": "cd backend && source venv/bin/activate && pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "keywords": [
+    "data-platform",
+    "no-code",
+    "workflow",
+    "collaboration",
+    "react",
+    "fastapi"
+  ],
+  "author": "Cascade Team",
+  "license": "MIT"
+}

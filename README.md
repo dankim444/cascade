@@ -6,48 +6,62 @@ Senior Design Group 34
 
 ### Prerequisites
 - Python 3.11
-- npm or yarn
+- Node.js 18+
+- npm
 
-### Development Setup
+### 🚀 Super Simple Setup (Recommended)
 
-1. **Clone the repository**:
+**One command to rule them all:**
 ```bash
+# Clone and setup everything
 git clone <your-repo>
 cd cascade
+npm run setup
+
+# Start both frontend and backend
+npm start
 ```
 
-2. **Setup Backend**:
+**Or use the startup script:**
 ```bash
-cd backend
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+# On macOS/Linux
+./start.sh
+
+# On Windows
+start.bat
 ```
 
-3. **Setup Frontend**:
+### Manual Setup (if needed)
+
+1. **Install all dependencies**:
 ```bash
-cd frontend
-npm install
+npm run install-all
 ```
 
-### Running the Application
-
-**Terminal 1 - Backend (FastAPI)**:
+2. **Start both servers**:
 ```bash
-cd backend
-source venv/bin/activate  # Windows: venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
+npm start
+```
+
+### Individual Server Commands
+
+**Backend only:**
+```bash
+npm run backend
 # API runs on http://localhost:8000
 # Docs available at http://localhost:8000/docs
 ```
 
-**Terminal 2 - Frontend (React)**:
+**Frontend only:**
 ```bash
-cd frontend
-npm run dev
-# UI runs on http://localhost:3000
+npm run frontend
+# UI runs on http://localhost:3000 (or 3001, 3002)
 ```
+
+### Access Points
+- **Frontend**: http://localhost:3000 (or 3001, 3002 if 3000 is busy)
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
 
 ## Technology Stack
 

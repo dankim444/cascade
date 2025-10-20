@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cascade Frontend UI Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+        }
+        .success { 
+            background-color: #d4edda; 
+            border-color: #c3e6cb; 
+            color: #155724;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border-color: #f5c6cb; 
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        button { 
+            padding: 10px 15px; 
+            margin: 5px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            font-size: 14px;
+        }
+        button:hover { 
+            background: #0056b3; 
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 3px; 
+            overflow-x: auto; 
+            font-size: 12px;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        @media (max-width: 600px) {
+            .test-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Cascade Frontend UI Test</h1>
+        <p>This page tests the Cascade frontend functionality and verifies that all components are working correctly.</p>
+        
+        <div class="test-grid">
+            <div class="test-section info">
+                <h3>📊 System Status</h3>
+                <div id="system-status">Checking system status...</div>
+                <button onclick="checkSystemStatus()">Refresh Status</button>
+            </div>
+            
+            <div class="test-section">
+                <h3>🔗 Backend Connection</h3>
+                <div id="backend-result">Not tested</div>
+                <button onclick="testBackend()">Test Backend</button>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📁 Data Upload Test</h3>
+            <div id="upload-result">Not tested</div>
+            <input type="file" id="fileInput" accept=".csv" style="margin: 10px 0;" />
+            <button onclick="testUpload()">Test Upload</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>⚙️ Transformation Test</h3>
+            <div id="transform-result">Not tested</div>
+            <button onclick="testTransformation()">Test SELECT Transform</button>
+            <button onclick="testFilterTransform()">Test FILTER Transform</button>
+            <button onclick="testGroupByTransform()">Test GROUPBY Transform</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>💾 Pipeline Management</h3>
+            <div id="pipeline-result">Not tested</div>
+            <button onclick="testPipelineSave()">Test Save Pipeline</button>
+            <button onclick="testPipelineLoad()">Test Load Pipelines</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>🎯 Frontend Integration</h3>
+            <div id="frontend-result">Not tested</div>
+            <button onclick="testFrontendIntegration()">Test Frontend Integration</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const FRONTEND_BASE = 'http://localhost:3000';
+        
+        async function checkSystemStatus() {
+            const statusDiv = document.getElementById('system-status');
+            statusDiv.innerHTML = 'Checking system status...';
+            
+            try {
+                // Check backend
+                const backendResponse = await fetch(`${API_BASE}/health`);
+                const backendOk = backendResponse.ok;
+                
+                // Check frontend
+                const frontendResponse = await fetch(FRONTEND_BASE);
+                const frontendOk = frontendResponse.ok;
+                
+                let status = '<div class="status">';
+                status += backendOk ? '✅ Backend: Running' : '❌ Backend: Down';
+                status += '<br>';
+                status += frontendOk ? '✅ Frontend: Running' : '❌ Frontend: Down';
+                status += '</div>';
+                
+                if (backendOk && frontendOk) {
+                    status += '<div style="color: green; font-weight: bold;">🎉 System is fully operational!</div>';
+                } else {
+                    status += '<div style="color: red; font-weight: bold;">⚠️ System has issues</div>';
+                }
+                
+                statusDiv.innerHTML = status;
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Status check failed: ${error.message}</div>`;
+            }
+        }
+        
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = 'Testing backend connection...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Backend is healthy<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Backend health check failed</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Backend connection failed: ${error.message}</div>`;
+            }
+        }
+        
+        async function testUpload() {
+            const fileInput = document.getElementById('fileInput');
+            const resultDiv = document.getElementById('upload-result');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="error">❌ Please select a CSV file first</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'Uploading file...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                const response = await fetch(`${API_BASE}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="success">✅ Upload successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    const error = await response.text();
+                    resultDiv.innerHTML = `<div class="error">❌ Upload failed: ${error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Upload error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testTransformation() {
+            const resultDiv = document.getElementById('transform-result');
+            resultDiv.innerHTML = 'Testing SELECT transformation...';
+            
+            const testPipeline = {
+                nodes: [
+                    {
+                        id: "transform-1",
+                        transform: {
+                            operation: "select",
+                            params: [JSON.stringify(["name", "age"])]
+                        },
+                        data: "test_data",
+                        position: { x: 100, y: 100 }
+                    }
+                ],
+                dataConnections: [
+                    {
+                        dataKey: "test_data",
+                        sqlConnection: "/Users/yashsamtani2/cascade/backend/data/test_data.db",
+                        schema: {
+                            columns: [
+                                { name: "name", type: "string", nullable: false },
+                                { name: "age", type: "number", nullable: false },
+                                { name: "city", type: "string", nullable: false },
+                                { name: "salary", type: "number", nullable: false }
+                            ]
+                        },
+                        rowCount: 8,
+                        lastAccessed: "2024-01-01T00:00:00Z"
+                    }
+                ]
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/transformations/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPipeline)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `<div class="success">✅ SELECT transformation successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ SELECT transformation failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Transformation error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testFilterTransform() {
+            const resultDiv = document.getElementById('transform-result');
+            resultDiv.innerHTML = 'Testing FILTER transformation...';
+            
+            const testPipeline = {
+                nodes: [
+                    {
+                        id: "transform-1",
+                        transform: {
+                            operation: "filter",
+                            params: [JSON.stringify({
+                                column: "age",
+                                operator: "greater_than",
+                                value: 30
+                            })]
+                        },
+                        data: "test_data",
+                        position: { x: 100, y: 100 }
+                    }
+                ],
+                dataConnections: [
+                    {
+                        dataKey: "test_data",
+                        sqlConnection: "/Users/yashsamtani2/cascade/backend/data/test_data.db",
+                        schema: {
+                            columns: [
+                                { name: "name", type: "string", nullable: false },
+                                { name: "age", type: "number", nullable: false },
+                                { name: "city", type: "string", nullable: false },
+                                { name: "salary", type: "number", nullable: false }
+                            ]
+                        },
+                        rowCount: 8,
+                        lastAccessed: "2024-01-01T00:00:00Z"
+                    }
+                ]
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/transformations/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPipeline)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `<div class="success">✅ FILTER transformation successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ FILTER transformation failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Transformation error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testGroupByTransform() {
+            const resultDiv = document.getElementById('transform-result');
+            resultDiv.innerHTML = 'Testing GROUPBY transformation...';
+            
+            const testPipeline = {
+                nodes: [
+                    {
+                        id: "transform-1",
+                        transform: {
+                            operation: "groupby",
+                            params: [JSON.stringify({
+                                groupColumns: ["city"],
+                                aggregations: [
+                                    {
+                                        column: "salary",
+                                        operation: "mean",
+                                        alias: "avg_salary"
+                                    }
+                                ]
+                            })]
+                        },
+                        data: "test_data",
+                        position: { x: 100, y: 100 }
+                    }
+                ],
+                dataConnections: [
+                    {
+                        dataKey: "test_data",
+                        sqlConnection: "/Users/yashsamtani2/cascade/backend/data/test_data.db",
+                        schema: {
+                            columns: [
+                                { name: "name", type: "string", nullable: false },
+                                { name: "age", type: "number", nullable: false },
+                                { name: "city", type: "string", nullable: false },
+                                { name: "salary", type: "number", nullable: false }
+                            ]
+                        },
+                        rowCount: 8,
+                        lastAccessed: "2024-01-01T00:00:00Z"
+                    }
+                ]
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/transformations/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPipeline)
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `<div class="success">✅ GROUPBY transformation successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ GROUPBY transformation failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Transformation error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testPipelineSave() {
+            const resultDiv = document.getElementById('pipeline-result');
+            resultDiv.innerHTML = 'Testing pipeline save...';
+            
+            const testPipeline = {
+                name: "Test Pipeline",
+                nodes: [
+                    {
+                        id: "transform-1",
+                        transform: {
+                            operation: "select",
+                            params: [JSON.stringify(["name", "age"])]
+                        },
+                        data: "test_data",
+                        position: { x: 100, y: 100 }
+                    }
+                ],
+                dataConnections: []
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/pipelines/save`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testPipeline)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Pipeline save successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Pipeline save failed</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Pipeline save error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testPipelineLoad() {
+            const resultDiv = document.getElementById('pipeline-result');
+            resultDiv.innerHTML = 'Testing pipeline load...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/pipelines`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="success">✅ Pipeline load successful<br><pre>${JSON.stringify(data, null, 2)}</pre></div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Pipeline load failed</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Pipeline load error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testFrontendIntegration() {
+            const resultDiv = document.getElementById('frontend-result');
+            resultDiv.innerHTML = 'Testing frontend integration...';
+            
+            try {
+                // Test if we can access the main React app
+                const response = await fetch(FRONTEND_BASE);
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    
+                    // Check for key React elements
+                    const hasReact = html.includes('react');
+                    const hasVite = html.includes('vite');
+                    const hasRoot = html.includes('root');
+                    
+                    let status = '<div class="success">✅ Frontend integration successful<br>';
+                    status += `React detected: ${hasReact ? '✅' : '❌'}<br>`;
+                    status += `Vite detected: ${hasVite ? '✅' : '❌'}<br>`;
+                    status += `Root element: ${hasRoot ? '✅' : '❌'}<br>`;
+                    status += '</div>';
+                    
+                    resultDiv.innerHTML = status;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Frontend not accessible</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Frontend integration error: ${error.message}</div>`;
+            }
+        }
+        
+        // Auto-run system status check on page load
+        window.onload = () => {
+            checkSystemStatus();
+        };
+    </script>
+</body>
+</html>

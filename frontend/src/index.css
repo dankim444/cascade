@@ -1,8 +1,6 @@
+/* ReactFlow styles must come first */
+@import 'reactflow/dist/style.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Custom styles for ReactFlow */
-@import '@reactflow/core/dist/style.css';
-@import '@reactflow/controls/dist/style.css';
-@import '@reactflow/minimap/dist/style.css';
