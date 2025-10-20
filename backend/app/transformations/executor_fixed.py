@@ -329,44 +329,64 @@ class TransformationExecutor:
         if not join_config:
             raise ValueError("No join configuration provided")
         
-        join_type = join_config['joinType']
-        left_column = join_config['leftColumn']
-        right_column = join_config['rightColumn']
+        join_type = join_config.get('joinType', 'inner')
+        left_column = join_config.get('leftColumn', '')
+        right_column = join_config.get('rightColumn', '')
         # Support both rightTable and rightDataKey
         right_table = join_config.get('rightTable') or join_config.get('rightDataKey')
         
+        # Validate all required fields
+        if not left_column:
+            raise ValueError("Left column not specified for JOIN")
+        if not right_column:
+            raise ValueError("Right column not specified for JOIN")
         if not right_table:
             raise ValueError("No right table/data key specified for JOIN")
         
         # Get right table connection
         right_conn = None
+        available_keys = [conn['dataKey'] for conn in data_connections]
+        
         for conn in data_connections:
             if conn['dataKey'] == right_table:
                 right_conn = conn
                 break
         
         if not right_conn:
-            raise ValueError(f"Right table connection not found: {right_table}")
+            raise ValueError(f"Right table connection not found: '{right_table}'. Available connections: {available_keys}")
         
         # Use pandas for joining data from different databases
-        left_db = sqlite3.connect(input_conn['sqlConnection'])
-        right_db = sqlite3.connect(right_conn['sqlConnection'])
-        
-        # Read data from both databases
-        left_df = pd.read_sql_query("SELECT * FROM data", left_db)
-        right_df = pd.read_sql_query("SELECT * FROM data", right_db)
-        
-        # Perform join using pandas
-        if join_type.lower() == 'inner':
-            result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='inner', suffixes=('_left', '_right'))
-        elif join_type.lower() == 'left':
-            result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='left', suffixes=('_left', '_right'))
-        elif join_type.lower() == 'right':
-            result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='right', suffixes=('_left', '_right'))
-        elif join_type.lower() == 'outer':
-            result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='outer', suffixes=('_left', '_right'))
-        else:
-            raise ValueError(f"Unsupported join type: {join_type}")
+        try:
+            left_db = sqlite3.connect(input_conn['sqlConnection'])
+            right_db = sqlite3.connect(right_conn['sqlConnection'])
+            
+            # Read data from both databases
+            left_df = pd.read_sql_query("SELECT * FROM data", left_db)
+            right_df = pd.read_sql_query("SELECT * FROM data", right_db)
+            
+            # Validate columns exist
+            if left_column not in left_df.columns:
+                raise ValueError(f"Column '{left_column}' not found in left table. Available columns: {list(left_df.columns)}")
+            if right_column not in right_df.columns:
+                raise ValueError(f"Column '{right_column}' not found in right table. Available columns: {list(right_df.columns)}")
+            
+            # Perform join using pandas
+            if join_type.lower() == 'inner':
+                result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='inner', suffixes=('_left', '_right'))
+            elif join_type.lower() == 'left':
+                result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='left', suffixes=('_left', '_right'))
+            elif join_type.lower() == 'right':
+                result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='right', suffixes=('_left', '_right'))
+            elif join_type.lower() == 'outer':
+                result_df = pd.merge(left_df, right_df, left_on=left_column, right_on=right_column, how='outer', suffixes=('_left', '_right'))
+            else:
+                raise ValueError(f"Unsupported join type: {join_type}")
+        except Exception as e:
+            if left_db:
+                left_db.close()
+            if right_db:
+                right_db.close()
+            raise ValueError(f"Join failed: {str(e)}")
         
         column_names = result_df.columns.tolist()
         results = result_df.values.tolist()

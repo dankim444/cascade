@@ -30,6 +30,14 @@ export const SimpleLayout: React.FC = () => {
         params: [JSON.stringify(config)]
       };
 
+      // Build data connections - include ALL datasets for join operations
+      const dataConnections = datasets.map(ds => ({
+        dataKey: ds.dataKey,
+        sqlConnection: `data/${ds.dataKey}.db`,
+        schema: { columns: ds.columns },
+        rowCount: ds.rowCount
+      }));
+
       const requestBody = {
         nodes: [{
           id: 'single-transform',
@@ -38,12 +46,7 @@ export const SimpleLayout: React.FC = () => {
           parent: undefined,
           child: undefined
         }],
-        dataConnections: [{
-          dataKey: dataset.dataKey,
-          sqlConnection: `data/${dataset.dataKey}.db`,
-          schema: { columns: dataset.columns },
-          rowCount: dataset.rowCount
-        }]
+        dataConnections: dataConnections
       };
 
       console.log('Sending request:', requestBody);

@@ -364,67 +364,106 @@ const GroupByConfig: React.FC<{ config: any; setConfig: (c: any) => void; availa
 const JoinConfig: React.FC<{ config: any; setConfig: (c: any) => void; availableColumns: string[]; datasets: Dataset[] }> = ({ 
   config, setConfig, availableColumns, datasets 
 }) => {
-  const rightDataset = datasets.find(ds => ds.id === config.rightTable);
+  // Find the right dataset by dataKey (not id!)
+  const rightDataset = datasets.find(ds => ds.dataKey === config.rightTable);
   const rightColumns = rightDataset?.columns.map(c => c.name) || [];
 
   return (
     <div className="space-y-3">
+      {/* Info box explaining joins */}
+      <div className="bg-orange-50 border border-orange-200 rounded-md p-3 text-xs text-orange-800">
+        <strong>Join combines two tables:</strong> Select the second table, then choose which columns to match on.
+      </div>
+      
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Join Type:</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          1. Join Type:
+        </label>
         <select
           value={config.joinType || 'inner'}
-          onChange={(e) => setConfig({ ...config, joinType: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          onChange={(e) => setConfig({ ...config, joinType: e.target.value, rightTable: '', leftColumn: '', rightColumn: '' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500"
         >
-          <option value="inner">Inner Join</option>
-          <option value="left">Left Join</option>
-          <option value="right">Right Join</option>
-          <option value="outer">Outer Join</option>
+          <option value="inner">Inner Join (only matching rows)</option>
+          <option value="left">Left Join (all from left + matching from right)</option>
+          <option value="right">Right Join (all from right + matching from left)</option>
+          <option value="outer">Outer Join (all from both)</option>
         </select>
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Right Table:</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          2. Second Table (Right):
+        </label>
         <select
           value={config.rightTable || ''}
-          onChange={(e) => setConfig({ ...config, rightTable: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          onChange={(e) => setConfig({ ...config, rightTable: e.target.value, rightColumn: '' })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500"
         >
-          <option value="">Select dataset...</option>
+          <option value="">Choose second dataset...</option>
           {datasets.map((ds) => (
-            <option key={ds.id} value={ds.dataKey}>{ds.name}</option>
+            <option key={ds.id} value={ds.dataKey}>
+              {ds.name} ({ds.rowCount} rows, {ds.columns.length} cols)
+            </option>
           ))}
         </select>
+        {datasets.length < 2 && (
+          <p className="text-xs text-orange-600 mt-1">
+            ⚠️ You need at least 2 datasets to join. Upload another dataset first.
+          </p>
+        )}
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Left Column:</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          3. Left Column (from first table):
+        </label>
         <select
           value={config.leftColumn || ''}
           onChange={(e) => setConfig({ ...config, leftColumn: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500"
+          disabled={!config.rightTable}
         >
-          <option value="">Select column...</option>
+          <option value="">Select column from left table...</option>
           {availableColumns.map((col) => (
             <option key={col} value={col}>{col}</option>
           ))}
         </select>
+        {availableColumns.length === 0 && (
+          <p className="text-xs text-gray-500 mt-1">No columns available</p>
+        )}
       </div>
       
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Right Column:</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          4. Right Column (from second table):
+          {rightDataset && <span className="text-orange-600 font-normal"> ({rightDataset.name})</span>}
+        </label>
         <select
           value={config.rightColumn || ''}
           onChange={(e) => setConfig({ ...config, rightColumn: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-500"
           disabled={!config.rightTable}
         >
-          <option value="">Select column...</option>
+          <option value="">
+            {config.rightTable ? 'Select column from right table...' : 'Select second table first'}
+          </option>
           {rightColumns.map((col) => (
             <option key={col} value={col}>{col}</option>
           ))}
         </select>
+        {config.rightTable && rightColumns.length === 0 && (
+          <p className="text-xs text-gray-500 mt-1">No columns in selected table</p>
+        )}
       </div>
+      
+      {/* Preview of what will be joined */}
+      {config.leftColumn && config.rightColumn && rightDataset && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-3 text-xs text-green-800">
+          <strong>✓ Ready to join:</strong><br/>
+          Match rows where <code className="bg-green-100 px-1 rounded">{config.leftColumn}</code> = <code className="bg-green-100 px-1 rounded">{config.rightColumn}</code>
+        </div>
+      )}
     </div>
   );
 };
