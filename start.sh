@@ -1,16 +1,22 @@
 #!/bin/bash
 
 # Cascade Startup Script
-echo "🚀 Starting Cascade - No-Code Data Platform"
-echo "=============================================="
+echo "🚀 Starting Cascade - Simple Data Transformations"
+echo "=================================================="
 
-# Check if we're in the right directory
-if [ ! -f "package.json" ]; then
-    echo "❌ Error: Please run this script from the cascade root directory"
+# Check if frontend exists
+if [ ! -d "frontend" ]; then
+    echo "❌ Error: Frontend directory not found. Please run from cascade root."
     exit 1
 fi
 
-# Check if node_modules exists
+# Check if backend exists
+if [ ! -d "backend" ]; then
+    echo "❌ Error: Backend directory not found. Please run from cascade root."
+    exit 1
+fi
+
+# Check if root node_modules exists (for concurrently)
 if [ ! -d "node_modules" ]; then
     echo "📦 Installing root dependencies..."
     npm install
@@ -31,12 +37,12 @@ fi
 echo "✅ All dependencies are ready!"
 echo ""
 echo "🌐 Starting servers..."
-echo "   Frontend: http://localhost:3000 (or 3001, 3002 if 3000 is busy)"
+echo "   Frontend: http://localhost:3000"
 echo "   Backend:  http://localhost:8000"
 echo "   API Docs: http://localhost:8000/docs"
 echo ""
 echo "Press Ctrl+C to stop all servers"
 echo ""
 
-# Start both servers
-npm run start
+# Start both servers using npm script
+npm start
