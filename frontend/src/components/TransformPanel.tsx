@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Filter, Columns, BarChart3, GitMerge, ArrowUpDown, X, Play } from 'lucide-react';
-import type { Dataset, TransformOperation, Transformation } from '../types';
-import { useWorkflowStore } from '../store/useWorkflowStore';
+import type { Dataset, TransformOperation } from '../types';
 
 interface TransformPanelProps {
   datasets: Dataset[];

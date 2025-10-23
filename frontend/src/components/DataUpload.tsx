@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, File, AlertCircle } from 'lucide-react';
+import { Upload, AlertCircle } from 'lucide-react';
 // Define types locally to avoid import issues
 interface Column {
   name: string;
@@ -61,7 +61,7 @@ export const DataUpload: React.FC<DataUploadProps> = ({ onUploadComplete }) => {
       const dataset = await datasetAPI.upload(file);
       
       // Show preview instead of immediately adding
-      setPreviewDataset(dataset);
+      setPreviewDataset(dataset as Dataset);
       
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to process file');

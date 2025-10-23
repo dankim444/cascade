@@ -1,8 +1,8 @@
-import { SimpleLayout } from './components/SimpleLayout';
+import { PipelineLayout } from './components/PipelineLayout';
 import './App.css';
 
 function App() {
-  return <SimpleLayout />;
+  return <PipelineLayout />;
 }
 
 export default App;

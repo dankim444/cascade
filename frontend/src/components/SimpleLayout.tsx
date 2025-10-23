@@ -11,7 +11,7 @@ export const SimpleLayout: React.FC = () => {
   const [showResults, setShowResults] = useState(false);
   const [executionResult, setExecutionResult] = useState<any>(null);
   
-  const { datasets, addDataset } = useWorkflowStore();
+  const { datasets } = useWorkflowStore();
 
   const handleUploadComplete = () => {
     setShowUpload(false);

@@ -27,39 +27,112 @@ class TransformationExecutor:
         Returns:
             Execution result with output data and metadata
         """
+        start_time = datetime.now()
+        
         try:
-            # Build execution graph
+            # If no nodes, just return the first data connection's data
+            if not nodes:
+                if data_connections:
+                    first_conn = data_connections[0]
+                    conn = sqlite3.connect(first_conn['sqlConnection'])
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM data LIMIT 10")
+                    results = cursor.fetchall()
+                    column_names = [desc[0] for desc in cursor.description]
+                    
+                    preview_data = []
+                    for row in results:
+                        row_dict = {}
+                        for i, value in enumerate(row):
+                            row_dict[column_names[i]] = value
+                        preview_data.append(row_dict)
+                    
+                    cursor.execute("SELECT COUNT(*) FROM data")
+                    row_count = cursor.fetchone()[0]
+                    conn.close()
+                    
+                    return {
+                        "status": "success",
+                        "message": "No transformations - showing source data",
+                        "executionTime": f"{(datetime.now() - start_time).total_seconds():.2f}s",
+                        "outputRows": row_count,
+                        "data": preview_data,
+                        "outputSchema": first_conn.get('schema', {}).get('columns', []),
+                        "timestamp": datetime.now().isoformat(),
+                        "executionResults": []
+                    }
+                else:
+                    raise ValueError("No data connections provided")
+            
+            # Build execution graph - track dependencies
             execution_order = self._build_execution_order(nodes)
             
-            # Execute transformations in order
-            current_data_key = None
+            # Execute transformations in order, tracking intermediate results
+            node_outputs = {}  # Map node_id -> output_data_key
             execution_results = []
             
             for node in execution_order:
-                result = self._execute_node(node, current_data_key, data_connections)
-                current_data_key = result['output_data_key']
+                node_id = node.get('id', 'unknown')
+                
+                # Determine input data key
+                parent_id = node.get('parent')
+                if parent_id and parent_id in node_outputs:
+                    # Use output from parent transform node
+                    input_data_key = node_outputs[parent_id]
+                    print(f"Node {node_id} using parent output: {input_data_key}")
+                else:
+                    # Use the data key from the node (should be a data source key)
+                    input_data_key = node.get('data')
+                    print(f"Node {node_id} using data source: {input_data_key}")
+                
+                # Execute the transformation
+                result = self._execute_node(node, input_data_key, data_connections)
+                
+                # Store output for child nodes - add to data_connections dynamically
+                output_key = result['output_data_key']
+                node_outputs[node_id] = output_key
+                
+                # Add the output as a new data connection for subsequent nodes
+                new_connection = {
+                    'dataKey': output_key,
+                    'sqlConnection': f"data/{output_key}.db",
+                    'schema': {'columns': result.get('output_schema', [])},
+                    'rowCount': result.get('row_count', 0)
+                }
+                data_connections.append(new_connection)
+                
+                # Add node ID to result
+                result['node_id'] = node_id
                 execution_results.append(result)
+                
+                print(f"Node {node_id} completed, output: {output_key}")
             
             # Get final result from the last execution
             if execution_results:
                 final_result = execution_results[-1]
+                execution_time = (datetime.now() - start_time).total_seconds()
+                
                 return {
                     "status": "success",
                     "message": "Pipeline executed successfully",
-                    "executionTime": "0.5s",  # TODO: Calculate actual time
+                    "executionTime": f"{execution_time:.2f}s",
                     "outputRows": final_result['row_count'],
-                    "data": final_result['preview'],  # Changed from outputData to data
+                    "data": final_result['preview'],
                     "outputSchema": final_result.get('output_schema', []),
                     "timestamp": datetime.now().isoformat(),
-                    "executionResults": execution_results
+                    "executionResults": execution_results,
+                    "nodeOutputs": node_outputs  # Include mapping of node outputs
                 }
             else:
                 raise ValueError("No transformations were executed")
             
         except Exception as e:
+            import traceback
             return {
                 "status": "error",
                 "message": f"Pipeline execution failed: {str(e)}",
+                "error": str(e),
+                "traceback": traceback.format_exc(),
                 "timestamp": datetime.now().isoformat()
             }
     
@@ -80,7 +153,15 @@ class TransformationExecutor:
             input_conn = self._get_data_connection(input_data_key, data_connections)
         else:
             # First node - use the data key from the node
-            input_conn = self._get_data_connection(node['data'], data_connections)
+            node_data_key = node.get('data')
+            if not node_data_key:
+                # Try to find the first available data connection
+                if data_connections:
+                    input_conn = data_connections[0]
+                else:
+                    raise ValueError(f"No data connection specified for node {node.get('id', 'unknown')}")
+            else:
+                input_conn = self._get_data_connection(node_data_key, data_connections)
         
         # Execute transformation based on operation
         if operation == 'select':
@@ -332,8 +413,12 @@ class TransformationExecutor:
         join_type = join_config.get('joinType', 'inner')
         left_column = join_config.get('leftColumn', '')
         right_column = join_config.get('rightColumn', '')
-        # Support both rightTable and rightDataKey
+        # Support both rightTable and rightDataKey (from graph edges)
         right_table = join_config.get('rightTable') or join_config.get('rightDataKey')
+        
+        print(f"JOIN operation - Config: {join_config}")
+        print(f"JOIN - Left column: {left_column}, Right column: {right_column}")
+        print(f"JOIN - Right table key: {right_table}")
         
         # Validate all required fields
         if not left_column:
@@ -341,7 +426,7 @@ class TransformationExecutor:
         if not right_column:
             raise ValueError("Right column not specified for JOIN")
         if not right_table:
-            raise ValueError("No right table/data key specified for JOIN")
+            raise ValueError("No right table/data key specified for JOIN. Make sure to connect both input handles.")
         
         # Get right table connection
         right_conn = None

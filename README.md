@@ -69,36 +69,59 @@ npm run frontend
 - **Backend**: Python 3.11, FastAPI, Pandas, SQLite
 - **Dev Tools**: Vite, uvicorn
 
-## ✨ New Features
+## ✨ Latest Features: Visual Pipeline System
 
-### Beautiful Transform Nodes
-- **Color-coded operations** - Each transform type has its own color
-- **Smart column selection** - Dropdowns populated with actual columns from your data
-- **Collapsible UI** - Click headers to expand/collapse configurations
-- **Intuitive forms** - Clear, user-friendly configuration for every operation
-- **Visual feedback** - Loading states, animations, and clear indicators
+### 🎨 Node-Based Pipeline Editor
+Cascade now features a **complete visual graph-based pipeline system**:
 
-### Available Operations (All Fully Implemented!)
+- **Visual Canvas** - Drag-and-drop interface for building data pipelines
+- **Node Graph** - Each transformation is a visual node with connections
+- **Real-time Flow** - See your data flow through transformations
+- **Interactive Canvas** - Zoom, pan, minimap for large pipelines
+- **Go Back in Time** - Click any node to view data at that stage
+
+### 📊 Node Types
+
+**Data Source Nodes (Blue)**
+- Upload CSV files as data sources
+- Shows row count and column information
+- Reusable across multiple transformations
+
+**Transformation Nodes (Color-Coded)**
 - 🔵 **Select** - Choose specific columns to keep
-- 🟣 **Filter** - Filter rows based on conditions (equals, greater than, contains, etc.)
-- 🟢 **Group By** - Group data and calculate aggregations (Sum, Mean, Count, Min, Max)
-- 🟠 **Join** - Combine multiple datasets (Inner, Left, Right, Outer)
-- 🩷 **Sort** - Sort data by column (Ascending/Descending)
-- 🎨 **Rename** (Bonus) - Rename columns
-- 🧮 **Calculate** (Bonus) - Add calculated columns with expressions
+- 🟣 **Filter** - Filter rows based on conditions
+- 🟢 **Group By** - Aggregate with sum, mean, count, min, max
+- 🟠 **Join** - Combine datasets (inner, left, right, outer)
+- 🩷 **Sort** - Order data by column
+- 🟦 **Rename** - Rename columns
+- 🟡 **Calculate** - Create calculated columns with expressions
 
-### Smart Pipeline Execution
-- Automatic execution order (topological sort)
-- Proper data flow between nodes
-- **Beautiful Results Viewer** - See your transformed data in a table
-- **CSV Export** - One-click download of results
-- Clear error messages and success feedback
-- Loading states during execution
+### 🔄 Advanced Pipeline Features
+
+**Execute from Any Point**
+- Click any node and "View Output" to see intermediate results
+- Run entire pipeline or just up to a specific node
+- **Debug and verify each transformation step**
+
+**Visual State Management**
+- See which nodes are running, completed, or have errors
+- Status indicators on each node
+- Historical results stored per execution
+
+**Smart Graph Management**
+- Automatic topological sorting of execution order
+- Connect nodes by dragging edges
+- Delete nodes and edges easily
+- Configuration panel for selected nodes
+
+**Pipeline Persistence**
+- Save entire pipeline as JSON
+- Export results to CSV
+- Reload and continue work
 
 ## 📚 Documentation
 
-- **USER_GUIDE.md** - Step-by-step guide with examples
+- **PIPELINE_GUIDE.md** - Complete guide to the visual pipeline system
+- **USER_GUIDE.md** - Step-by-step guide with examples (legacy simple mode)
 - **TROUBLESHOOTING.md** - Common issues and solutions
 - **TRANSFORM_IMPROVEMENTS.md** - Technical details
-- **WHATS_NEW.md** - Overview of improvements
-```

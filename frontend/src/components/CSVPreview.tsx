@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, CheckCircle } from 'lucide-react';
 
 // Define types locally to avoid import issues
 interface Column {
@@ -63,7 +63,7 @@ export const CSVPreview: React.FC<CSVPreviewProps> = ({ dataset, onConfirm, onCa
               <div>Nullable</div>
               <div>Sample Value</div>
             </div>
-            {dataset.columns.map((column, index) => (
+            {dataset.columns.map((column) => (
               <div key={column.name} className="grid grid-cols-4 gap-2 text-sm text-gray-600 py-1 border-b border-gray-200 last:border-b-0">
                 <div className="font-medium">{column.name}</div>
                 <div className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
