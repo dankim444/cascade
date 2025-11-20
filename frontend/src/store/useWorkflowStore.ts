@@ -44,10 +44,12 @@ interface WorkflowState {
   
   // Dataset actions
   addDataset: (dataset: Dataset) => void;
+  setDatasets: (datasets: Dataset[]) => void;
   setSelectedDataset: (datasetId: string | null) => void;
   
   // Data connection actions
   addDataConnection: (connection: DataConnection) => void;
+  setDataConnections: (connections: DataConnection[]) => void;
   removeDataConnection: (dataKey: string) => void;
   
   // Pipeline actions
@@ -140,6 +142,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
   },
 
+  setDatasets: (datasets: Dataset[]) => {
+    set({ datasets });
+  },
+
   setSelectedDataset: (datasetId: string | null) => {
     set({ selectedDatasetId: datasetId });
   },
@@ -149,6 +155,10 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     set((state) => ({
       dataConnections: [...state.dataConnections, connection]
     }));
+  },
+
+  setDataConnections: (connections: DataConnection[]) => {
+    set({ dataConnections: connections });
   },
 
   removeDataConnection: (dataKey: string) => {
@@ -315,11 +325,29 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         }
       });
       
+      // Get auth token
+      const authStorage = localStorage.getItem('cascade-auth-storage');
+      let token = null;
+      if (authStorage) {
+        try {
+          const authData = JSON.parse(authStorage);
+          token = authData.token;
+        } catch (e) {
+          // Invalid token format
+        }
+      }
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch('http://localhost:8000/api/transformations/run', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(pipeline),
       });
       
