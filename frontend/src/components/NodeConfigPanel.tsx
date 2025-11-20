@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Settings, Plus } from 'lucide-react';
 import type { Node as FlowNode } from 'reactflow';
 import type { Dataset } from '../types';
+import { useWorkflowStore } from '../store/useWorkflowStore';
 
 interface NodeConfigPanelProps {
   selectedNode: FlowNode | null;
@@ -18,6 +19,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 }) => {
   const [config, setConfig] = useState<any>({});
   const [label, setLabel] = useState('');
+  const { flowEdges, getNodeResult } = useWorkflowStore();
 
   useEffect(() => {
     if (selectedNode) {
@@ -39,13 +41,27 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
     onClose();
   };
 
-  // Get available columns from the input dataset
+  // Get available columns from the parent node's output schema or the input dataset
   const getAvailableColumns = (): string[] => {
+    // First, try to find the parent node from edges
+    const parentEdge = flowEdges.find(e => e.target === selectedNode.id);
+    
+    if (parentEdge) {
+      // Check if parent has execution results with output schema
+      const parentResult = getNodeResult(parentEdge.source);
+      if (parentResult?.outputSchema && parentResult.outputSchema.length > 0) {
+        // Use the parent's output schema (includes aggregated columns from groupby, etc.)
+        return parentResult.outputSchema.map((col: any) => col.name);
+      }
+    }
+    
+    // Fallback: Get columns from the original dataset
     const dataKey = selectedNode.data.dataKey;
     if (dataKey) {
       const dataset = datasets.find(d => d.dataKey === dataKey);
       return dataset?.columns.map(c => c.name) || [];
     }
+    
     return [];
   };
 
