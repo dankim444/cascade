@@ -6,52 +6,32 @@ Senior Design Group 34
 
 ### Prerequisites
 - Python 3.11
-- npm or yarn
+- Node.js 18+
+- npm
 
-### Development Setup
+### Setup
 
-1. **Clone the repository**:
+**Run both frontend and backend at once**
 ```bash
-git clone <your-repo>
+# Clone and setup everything
+git clone git@github.com:dankim444/cascade.git
 cd cascade
+npm run setup
+
+# Start both frontend and backend
+npm start
 ```
 
-2. **Setup Backend**:
+**Or use the startup script:**
 ```bash
-cd backend
-python3.11 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+# On macOS/Linux
+./start.sh
+
+# On Windows
+start.bat
 ```
 
-3. **Setup Frontend**:
-```bash
-cd frontend
-npm install
-```
+## 📚 Documentation
 
-### Running the Application
-
-**Terminal 1 - Backend (FastAPI)**:
-```bash
-cd backend
-source venv/bin/activate  # Windows: venv\Scripts\activate
-uvicorn app.main:app --reload --port 8000
-# API runs on http://localhost:8000
-# Docs available at http://localhost:8000/docs
-```
-
-**Terminal 2 - Frontend (React)**:
-```bash
-cd frontend
-npm run dev
-# UI runs on http://localhost:3000
-```
-
-## Technology Stack
-
-- **Frontend**: React 18, TypeScript, ReactFlow, Tailwind CSS, Zustand
-- **Backend**: Python 3.10, FastAPI, Pandas
-- **Dev Tools**: Vite, uvicorn
-```
+- **PIPELINE_GUIDE.md** - Complete guide to the visual pipeline system
+- **USER_GUIDE.md** - Step-by-step guide with examples (legacy simple mode)

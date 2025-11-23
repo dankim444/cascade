@@ -1,8 +1,77 @@
+/* ReactFlow styles must come first */
+@import 'reactflow/dist/style.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles for ReactFlow */
-@import '@reactflow/core/dist/style.css';
-@import '@reactflow/controls/dist/style.css';
-@import '@reactflow/minimap/dist/style.css';
+/* Enhanced ReactFlow connection styles */
+.react-flow__handle {
+  cursor: crosshair !important;
+  transition: all 0.2s ease-in-out;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+.react-flow__handle-connecting {
+  background: #3b82f6 !important;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.react-flow__connection-path {
+  stroke: #3b82f6 !important;
+  stroke-width: 3 !important;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* Make nodes slightly lift on hover when not selected */
+.react-flow__node:hover {
+  z-index: 1000 !important;
+}
+
+/* Highlight valid connection targets */
+.react-flow__handle-valid {
+  background: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.3);
+}
+
+/* Show invalid connection targets */
+.react-flow__handle-invalid {
+  background: #ef4444 !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.3);
+}
+
+/* Smooth edge animations */
+.react-flow__edge-path {
+  transition: stroke 0.2s ease-in-out;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #3b82f6 !important;
+  stroke-width: 3 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #3b82f6 !important;
+  stroke-width: 3 !important;
+}
