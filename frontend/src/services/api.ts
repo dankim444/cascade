@@ -57,13 +57,42 @@ const api = axios.create({
   },
 });
 
+// Add auth token to all requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('cascade-auth-storage');
+  if (token) {
+    try {
+      const authData = JSON.parse(token);
+      if (authData.token) {
+        config.headers.Authorization = `Bearer ${authData.token}`;
+      }
+    } catch (e) {
+      // Invalid token format, ignore
+    }
+  }
+  return config;
+});
+
+// Handle 401 errors (unauthorized)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear auth data and redirect to login
+      localStorage.removeItem('cascade-auth-storage');
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Dataset API
 export const datasetAPI = {
   upload: async (file: File): Promise<Dataset> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await api.post('/api/upload', formData, {
+    const response = await api.post('/api/datasets/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -86,11 +115,16 @@ export const datasetAPI = {
     const response = await api.get(`/api/datasets/${id}/preview?limit=${limit}`);
     return response.data;
   },
+
+  delete: async (id: string): Promise<any> => {
+    const response = await api.delete(`/api/datasets/${id}`);
+    return response.data;
+  },
 };
 
 // Pipeline API
 export const pipelineAPI = {
-  save: async (pipeline: Pipeline): Promise<Pipeline> => {
+  save: async (pipeline: any): Promise<any> => {
     const response = await api.post('/api/pipelines/save', pipeline);
     return response.data;
   },
