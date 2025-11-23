@@ -34,6 +34,12 @@ if [ ! -d "backend/venv" ]; then
     cd backend && python3.11 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && cd ..
 fi
 
+# Initialize database if needed
+if [ ! -f "backend/cascade.db" ] || [ ! -s "backend/cascade.db" ]; then
+    echo "🗄️  Initializing database..."
+    cd backend && source venv/bin/activate && python init_db.py && cd ..
+fi
+
 echo "✅ All dependencies are ready!"
 echo ""
 echo "🌐 Starting servers..."

@@ -33,6 +33,15 @@ if not exist "backend\venv\" (
     cd ..
 )
 
+REM Initialize database if needed
+if not exist "backend\cascade.db" (
+    echo 🗄️  Initializing database...
+    cd backend
+    call venv\Scripts\activate
+    python init_db.py
+    cd ..
+)
+
 echo ✅ All dependencies are ready!
 echo.
 echo 🌐 Starting servers...
