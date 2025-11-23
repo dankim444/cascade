@@ -173,8 +173,6 @@ _[Coming soon - Will include screen recording of building a pipeline]_
 
 - Check **PIPELINE_GUIDE.md** for detailed documentation
 - See **ARCHITECTURE.md** for technical details
-- Review **TROUBLESHOOTING.md** for common issues
-- Read **WHATS_NEW_PIPELINE.md** for feature overview
 
 ---
 
