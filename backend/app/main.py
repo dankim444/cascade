@@ -1,20 +1,26 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import pandas as pd
-import sqlite3
-import io
-import json
-from typing import List, Dict, Any
-import uuid
+from sqlalchemy.orm import Session
+from typing import Dict, Any
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 from app.transformations.executor_fixed import TransformationExecutor
+from app.core.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
+from app.models.pipeline import Pipeline
+from app.api.routes import auth_router
+from app.api.routes.datasets import router as datasets_router
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI(
     title="Cascade API",
     description="Backend API for Cascade - No-Code Data Platform",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS middleware to allow frontend connections
@@ -26,12 +32,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory storage (in production, use a database)
-datasets = {}
-pipelines = {}
-data_connections = {}  # Store SQL connections
+# Include routers
+app.include_router(auth_router)
+app.include_router(datasets_router)
 
-# Create data directory if it doesn't exist
+# Create data directory if it doesn't exist (for temporary files)
 os.makedirs("data", exist_ok=True)
 
 @app.get("/")
@@ -42,204 +47,206 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-@app.post("/api/upload")
-async def upload_dataset(file: UploadFile = File(...)):
-    """Upload and process a dataset file with SQL storage"""
-    try:
-        # Read file content
-        content = await file.read()
-        
-        # Parse CSV
-        df = pd.read_csv(io.StringIO(content.decode('utf-8')))
-        
-        # Generate dataset ID and data key
-        dataset_id = str(uuid.uuid4())
-        data_key = f"data_{dataset_id}"
-        
-        # Create SQLite database for this dataset
-        db_path = f"data/{data_key}.db"
-        conn = sqlite3.connect(db_path)
-        
-        # Store data in SQLite
-        df.to_sql('data', conn, if_exists='replace', index=False)
-        
-        # Get schema information
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(data)")
-        columns_info = cursor.fetchall()
-        
-        # Convert to our schema format
-        columns = []
-        for col_info in columns_info:
-            col_name = col_info[1]
-            col_type = col_info[2]
-            nullable = not col_info[3]  # NOT NULL constraint
-            
-            # Map SQLite types to our types
-            if col_type.upper() in ['INTEGER', 'REAL']:
-                type_mapped = 'number'
-            elif col_type.upper() == 'TEXT':
-                type_mapped = 'string'
-            else:
-                type_mapped = 'string'
-            
-            columns.append({
-                "name": col_name,
-                "type": type_mapped,
-                "nullable": nullable
-            })
-        
-        # Get preview data using SQL
-        cursor.execute("SELECT * FROM data LIMIT 10")
-        preview_rows = cursor.fetchall()
-        column_names = [desc[0] for desc in cursor.description]
-        
-        # Convert to JSON-serializable format
-        preview_data = []
-        for row in preview_rows:
-            row_dict = {}
-            for i, value in enumerate(row):
-                if value is None:
-                    row_dict[column_names[i]] = None
-                else:
-                    row_dict[column_names[i]] = value
-            preview_data.append(row_dict)
-        
-        # Get row count
-        cursor.execute("SELECT COUNT(*) FROM data")
-        row_count = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        # Create dataset metadata
-        dataset_info = {
-            "id": dataset_id,
-            "name": file.filename.replace('.csv', ''),
-            "columns": columns,
-            "rowCount": row_count,
-            "preview": preview_data,
-            "dataKey": data_key,
-            "uploadedAt": datetime.now().isoformat()
-        }
-        
-        # Store dataset info and SQL connection
-        datasets[dataset_id] = dataset_info
-        data_connections[data_key] = {
-            "dataKey": data_key,
-            "sqlConnection": db_path,
-            "schema": {"columns": columns},
-            "rowCount": row_count,
-            "lastAccessed": datetime.now()
-        }
-        
-        return dataset_info
-        
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
-
-@app.get("/api/datasets")
-async def get_datasets():
-    """Get all uploaded datasets"""
-    return {"datasets": list(datasets.values())}
-
-@app.get("/api/datasets/{dataset_id}")
-async def get_dataset(dataset_id: str):
-    """Get specific dataset"""
-    if dataset_id not in datasets:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    
-    return datasets[dataset_id]["info"]
-
-@app.get("/api/datasets/{dataset_id}/preview")
-async def get_dataset_preview(dataset_id: str, limit: int = 10):
-    """Get dataset preview data using SQL"""
-    if dataset_id not in datasets:
-        raise HTTPException(status_code=404, detail="Dataset not found")
-    
-    dataset = datasets[dataset_id]
-    data_key = dataset["dataKey"]
-    
-    if data_key not in data_connections:
-        raise HTTPException(status_code=404, detail="Data connection not found")
-    
-    # Connect to SQLite database
-    db_path = data_connections[data_key]["sqlConnection"]
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Get preview data using SQL
-    cursor.execute(f"SELECT * FROM data LIMIT {limit}")
-    preview_rows = cursor.fetchall()
-    column_names = [desc[0] for desc in cursor.description]
-    
-    # Convert to JSON-serializable format
-    preview_data = []
-    for row in preview_rows:
-        row_dict = {}
-        for i, value in enumerate(row):
-            if value is None:
-                row_dict[column_names[i]] = None
-            else:
-                row_dict[column_names[i]] = value
-        preview_data.append(row_dict)
-    
-    # Get total row count
-    cursor.execute("SELECT COUNT(*) FROM data")
-    total_rows = cursor.fetchone()[0]
-    
-    conn.close()
-    
-    return {
-        "data": preview_data,
-        "totalRows": total_rows
-    }
+# Legacy upload endpoint - now handled by datasets router
+# Keeping for backward compatibility during migration
 
 @app.post("/api/transformations/run")
-async def run_transformation(pipeline: Dict[str, Any]):
+async def run_transformation(
+    pipeline: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Execute a transformation pipeline"""
+    from app.models.dataset import Dataset
+    from app.services.s3_service import s3_service
+    import tempfile
+    import os
+    
+    temp_files_to_cleanup = []  # Track temp files for cleanup
+    
     try:
         # Extract nodes and data connections from pipeline
         nodes = pipeline.get('nodes', [])
-        data_connections = pipeline.get('dataConnections', [])
+        data_connections_raw = pipeline.get('dataConnections', [])
         
-        # Create transformation executor
-        executor = TransformationExecutor(data_connections)
+        # Resolve data connections: convert dataKeys to actual S3 downloads
+        resolved_data_connections = []
+        
+        for conn in data_connections_raw:
+            data_key = conn.get('dataKey')
+            if not data_key:
+                continue
+            
+            # Find dataset in database by dataKey and user
+            dataset = db.query(Dataset).filter(
+                Dataset.data_key == data_key,
+                Dataset.user_id == current_user.id
+            ).first()
+            
+            if dataset:
+                # Download database from S3 to temporary file
+                db_content = s3_service.download_file(dataset.s3_db_path)
+                if db_content:
+                    # Create temporary database file
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+                    temp_file.write(db_content)
+                    temp_file.close()
+                    temp_path = temp_file.name
+                    temp_files_to_cleanup.append(temp_path)
+                    
+                    # Create resolved connection
+                    resolved_conn = {
+                        'dataKey': dataset.data_key,
+                        'sqlConnection': temp_path,  # Local temp path
+                        'schema': {'columns': dataset.columns},
+                        'rowCount': dataset.row_count
+                    }
+                    resolved_data_connections.append(resolved_conn)
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Could not download dataset {data_key} from S3"
+                    )
+            else:
+                # Might be an intermediate result from a previous transformation
+                # Check if it's a local temp file path (from intermediate results)
+                sql_connection = conn.get('sqlConnection', '')
+                if os.path.exists(sql_connection):
+                    # It's already a local file (intermediate result)
+                    resolved_data_connections.append(conn)
+                else:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Dataset with dataKey {data_key} not found for user"
+                    )
+        
+        # Create transformation executor with resolved connections
+        executor = TransformationExecutor(resolved_data_connections)
         
         # Execute pipeline
-        result = executor.execute_pipeline(nodes, data_connections)
+        result = executor.execute_pipeline(nodes, resolved_data_connections)
         
         return result
         
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {str(e)}")
+    finally:
+        # Clean up temporary files
+        for temp_path in temp_files_to_cleanup:
+            try:
+                if os.path.exists(temp_path):
+                    os.unlink(temp_path)
+            except Exception as e:
+                print(f"Error cleaning up temp file {temp_path}: {e}")
 
 @app.post("/api/pipelines/save")
-async def save_pipeline(pipeline: Dict[str, Any]):
+async def save_pipeline(
+    pipeline: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Save a pipeline"""
-    pipeline_id = str(uuid.uuid4())
-    pipeline_data = {
-        "id": pipeline_id,
-        "name": pipeline.get("name", "Untitled Pipeline"),
-        "definition": pipeline,
-        "createdAt": datetime.now().isoformat(),
-        "updatedAt": datetime.now().isoformat()
-    }
+    import uuid
     
-    pipelines[pipeline_id] = pipeline_data
-    return pipeline_data
+    pipeline_id = pipeline.get("id") or str(uuid.uuid4())
+    
+    # Check if pipeline exists
+    existing = db.query(Pipeline).filter(
+        Pipeline.id == pipeline_id,
+        Pipeline.user_id == current_user.id
+    ).first()
+    
+    if existing:
+        # Update existing
+        existing.name = pipeline.get("name", existing.name)
+        existing.definition = pipeline
+        existing.updated_at = datetime.now()
+        db.commit()
+        db.refresh(existing)
+        
+        # Handle updated_at which should be set after update
+        updated_at = existing.updated_at
+        if updated_at is None:
+            updated_at = existing.created_at
+        
+        return {
+            "id": existing.id,
+            "name": existing.name,
+            "definition": existing.definition,
+            "createdAt": existing.created_at.isoformat(),
+            "updatedAt": updated_at.isoformat()
+        }
+    else:
+        # Create new
+        new_pipeline = Pipeline(
+            id=pipeline_id,
+            user_id=current_user.id,
+            name=pipeline.get("name", "Untitled Pipeline"),
+            definition=pipeline
+        )
+        db.add(new_pipeline)
+        db.commit()
+        db.refresh(new_pipeline)
+        
+        # Handle updated_at which might be None for new records
+        updated_at = new_pipeline.updated_at
+        if updated_at is None:
+            updated_at = new_pipeline.created_at
+        
+        return {
+            "id": new_pipeline.id,
+            "name": new_pipeline.name,
+            "definition": new_pipeline.definition,
+            "createdAt": new_pipeline.created_at.isoformat(),
+            "updatedAt": updated_at.isoformat()
+        }
 
 @app.get("/api/pipelines")
-async def get_pipelines():
-    """Get all saved pipelines"""
-    return {"pipelines": list(pipelines.values())}
+async def get_pipelines(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all saved pipelines for the current user"""
+    pipelines = db.query(Pipeline).filter(Pipeline.user_id == current_user.id).all()
+    
+    return {
+        "pipelines": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "definition": p.definition,
+                "createdAt": p.created_at.isoformat(),
+                "updatedAt": (p.updated_at or p.created_at).isoformat()
+            }
+            for p in pipelines
+        ]
+    }
 
 @app.get("/api/pipelines/{pipeline_id}")
-async def get_pipeline(pipeline_id: str):
+async def get_pipeline(
+    pipeline_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get specific pipeline"""
-    if pipeline_id not in pipelines:
+    pipeline = db.query(Pipeline).filter(
+        Pipeline.id == pipeline_id,
+        Pipeline.user_id == current_user.id
+    ).first()
+    
+    if not pipeline:
         raise HTTPException(status_code=404, detail="Pipeline not found")
     
-    return pipelines[pipeline_id]
+    return {
+        "id": pipeline.id,
+        "name": pipeline.name,
+        "definition": pipeline.definition,
+        "createdAt": pipeline.created_at.isoformat(),
+        "updatedAt": (pipeline.updated_at or pipeline.created_at).isoformat()
+    }
 
 if __name__ == "__main__":
     import uvicorn
