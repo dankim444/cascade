@@ -57,6 +57,21 @@ export interface GraphResponse {
   data_summary: any;
 }
 
+export interface SavedGraph {
+  id: string;
+  name: string;
+  config: GraphConfig;
+  data_key: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface SaveGraphRequest {
+  name: string;
+  config: GraphConfig;
+  data_key: string;
+}
+
 const API_BASE = 'http://localhost:8000/api/v1/graphs';
 
 // Helper function to get auth headers
@@ -125,5 +140,60 @@ export const graphAPI = {
     } catch {
       return false;
     }
+  },
+
+  // Saved graphs API
+  async getSavedGraphs(): Promise<SavedGraph[]> {
+    const response = await fetch('http://localhost:8000/api/v1/saved-graphs', {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch saved graphs');
+    }
+    return response.json();
+  },
+
+  async saveGraph(request: SaveGraphRequest): Promise<{id: string, message: string}> {
+    const response = await fetch('http://localhost:8000/api/v1/saved-graphs', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to save graph: ${error}`);
+    }
+    
+    return response.json();
+  },
+
+  async deleteSavedGraph(graphId: string): Promise<{message: string}> {
+    const response = await fetch(`http://localhost:8000/api/v1/saved-graphs/${graphId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to delete graph: ${error}`);
+    }
+    
+    return response.json();
+  },
+
+  async updateSavedGraph(graphId: string, request: SaveGraphRequest): Promise<{message: string}> {
+    const response = await fetch(`http://localhost:8000/api/v1/saved-graphs/${graphId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to update graph: ${error}`);
+    }
+    
+    return response.json();
   }
 };
