@@ -3,15 +3,7 @@ import { FullGraphConfigPanel } from './FullGraphConfigPanel';
 import { GraphViewer } from './GraphViewer';
 import { graphAPI } from '../services/graphAPI';
 import { useWorkflowStore } from '../store/useWorkflowStore';
-import type { GraphConfig, GraphResponse } from '../services/graphAPI';
-
-interface SavedGraph {
-  id: string;
-  name: string;
-  config: GraphConfig;
-  dataKey: string;
-  createdAt: string;
-}
+import type { GraphConfig, GraphResponse, SavedGraph } from '../services/graphAPI';
 
 export const GraphsLayout: React.FC = () => {
   const { datasets } = useWorkflowStore();
@@ -24,16 +16,29 @@ export const GraphsLayout: React.FC = () => {
   // Datasets are now available directly from the Zustand store
   // No need for useEffect to load them
 
-  // Load saved graphs from localStorage
+  // Load saved graphs from backend
   useEffect(() => {
-    const saved = localStorage.getItem('savedGraphs');
-    if (saved) {
+    const loadSavedGraphs = async () => {
       try {
-        setSavedGraphs(JSON.parse(saved));
+        const graphs = await graphAPI.getSavedGraphs();
+        setSavedGraphs(graphs);
       } catch (error) {
         console.error('Error loading saved graphs:', error);
+        // Fallback to localStorage for migration
+        const saved = localStorage.getItem('savedGraphs');
+        if (saved) {
+          try {
+            const localGraphs = JSON.parse(saved);
+            setSavedGraphs(localGraphs);
+            // TODO: Migrate local graphs to backend
+          } catch (e) {
+            console.error('Error parsing local saved graphs:', e);
+          }
+        }
       }
-    }
+    };
+    
+    loadSavedGraphs();
   }, []);
 
   const handleDatasetSelect = (dataKey: string) => {
@@ -61,29 +66,34 @@ export const GraphsLayout: React.FC = () => {
     }
   };
 
-  const handleSaveGraph = (name: string) => {
+  const handleSaveGraph = async (name: string) => {
     if (!currentGraph || !selectedDataKey) return;
 
-    const newGraph: SavedGraph = {
-      id: Date.now().toString(),
-      name,
-      config: currentGraph.config,
-      dataKey: selectedDataKey,
-      createdAt: new Date().toISOString()
-    };
-
-    const updatedGraphs = [...savedGraphs, newGraph];
-    setSavedGraphs(updatedGraphs);
-    localStorage.setItem('savedGraphs', JSON.stringify(updatedGraphs));
+    try {
+      await graphAPI.saveGraph({
+        name,
+        config: currentGraph.config,
+        data_key: selectedDataKey
+      });
+      
+      // Refresh saved graphs list
+      const graphs = await graphAPI.getSavedGraphs();
+      setSavedGraphs(graphs);
+      
+      alert('Graph saved successfully!');
+    } catch (error) {
+      console.error('Error saving graph:', error);
+      alert('Failed to save graph. Please try again.');
+    }
   };
 
   const handleLoadSavedGraph = async (savedGraph: SavedGraph) => {
-    setSelectedDataKey(savedGraph.dataKey);
+    setSelectedDataKey(savedGraph.data_key);
     
     setIsGenerating(true);
     try {
       const response = await graphAPI.generate({
-        data_key: savedGraph.dataKey,
+        data_key: savedGraph.data_key,
         config: savedGraph.config
       });
       setCurrentGraph(response);
@@ -95,10 +105,17 @@ export const GraphsLayout: React.FC = () => {
     }
   };
 
-  const handleDeleteSavedGraph = (graphId: string) => {
-    const updatedGraphs = savedGraphs.filter(g => g.id !== graphId);
-    setSavedGraphs(updatedGraphs);
-    localStorage.setItem('savedGraphs', JSON.stringify(updatedGraphs));
+  const handleDeleteSavedGraph = async (graphId: string) => {
+    try {
+      await graphAPI.deleteSavedGraph(graphId);
+      
+      // Refresh saved graphs list
+      const graphs = await graphAPI.getSavedGraphs();
+      setSavedGraphs(graphs);
+    } catch (error) {
+      console.error('Error deleting saved graph:', error);
+      alert('Failed to delete graph. Please try again.');
+    }
   };
 
   return (
@@ -171,7 +188,7 @@ export const GraphsLayout: React.FC = () => {
                         {graph.config.graph_type.replace('_', ' ')}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">
-                        {new Date(graph.createdAt).toLocaleDateString()}
+                        {new Date(graph.created_at).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex space-x-1 ml-2">
