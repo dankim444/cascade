@@ -50,3 +50,8 @@ uvicorn==0.24.0
 uvloop==0.22.1
 watchfiles==1.1.1
 websockets==15.0.1
+# Plotting and visualization libraries
+plotly==6.5.0
+matplotlib==3.10.7
+seaborn==0.13.2
+kaleido==1.2.0

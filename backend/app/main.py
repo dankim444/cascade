@@ -13,6 +13,7 @@ from app.models.user import User
 from app.models.pipeline import Pipeline
 from app.api.routes import auth_router
 from app.api.routes.datasets import router as datasets_router
+from app.api.routes import router as api_router
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,6 +36,9 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(datasets_router)
+
+# Include API routes
+app.include_router(api_router, prefix="/api/v1")
 
 # Create data directory if it doesn't exist (for temporary files)
 os.makedirs("data", exist_ok=True)

@@ -1,0 +1,129 @@
+/**
+ * Graph API service for interacting with the backend graph endpoints
+ */
+
+export interface GraphConfig {
+  graph_type: string;
+  x_column?: string;
+  y_column?: string;
+  color_column?: string;
+  size_column?: string;
+  aggregation?: string;
+  title?: string;
+  x_label?: string;
+  y_label?: string;
+  width: number;
+  height: number;
+  theme: string;
+}
+
+export interface GraphRequest {
+  data_key: string;
+  config: GraphConfig;
+}
+
+export interface Column {
+  name: string;
+  type: string;
+}
+
+export interface GraphType {
+  type: string;
+  name: string;
+  description: string;
+  fields: {
+    [key: string]: {
+      label: string;
+      help: string;
+      required: boolean;
+    };
+  };
+}
+
+export interface GraphTypesResponse {
+  graph_types: GraphType[];
+}
+
+export interface ColumnsResponse {
+  columns: Column[];
+  numeric_columns: string[];
+  categorical_columns: string[];
+}
+
+export interface GraphResponse {
+  graph_json: string;
+  graph_image?: string;
+  config: GraphConfig;
+  data_summary: any;
+}
+
+const API_BASE = 'http://localhost:8000/api/v1/graphs';
+
+// Helper function to get auth headers
+function getAuthHeaders(): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  const token = localStorage.getItem('cascade-auth-storage');
+  if (token) {
+    try {
+      const authData = JSON.parse(token);
+      if (authData.token) {
+        headers['Authorization'] = `Bearer ${authData.token}`;
+      }
+    } catch (e) {
+      // Invalid token format, ignore
+    }
+  }
+  
+  return headers;
+}
+
+export const graphAPI = {
+  async getGraphTypes(): Promise<GraphTypesResponse> {
+    const response = await fetch(`${API_BASE}/types`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch graph types');
+    }
+    return response.json();
+  },
+
+  async getColumns(dataKey: string): Promise<ColumnsResponse> {
+    const response = await fetch(`${API_BASE}/columns/${dataKey}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch columns');
+    }
+    return response.json();
+  },
+
+  async generate(request: GraphRequest): Promise<GraphResponse> {
+    const response = await fetch(`${API_BASE}/generate`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to generate graph: ${error}`);
+    }
+    
+    return response.json();
+  },
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_BASE}/test`, {
+        headers: getAuthHeaders(),
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+};
