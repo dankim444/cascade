@@ -5,6 +5,7 @@ Senior Design Group 34
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.11
 - Node.js 18+
 - npm
@@ -12,18 +13,17 @@ Senior Design Group 34
 ### Setup
 
 **Run both frontend and backend at once**
+
 ```bash
 # Clone and setup everything
 git clone git@github.com:dankim444/cascade.git
 cd cascade
 npm run setup
 
-# If you haven't already, create a virtual environment in backend/
+# If you haven't already, create a virtual environment in backend/ and initialize the database
 cd backend
 python -m venv venv
 source venv/bin/activate
-
-# Initialize the database
 python init_db.py
 cd ..
 
@@ -32,6 +32,7 @@ npm start
 ```
 
 **Or use the startup script:**
+
 ```bash
 # On macOS/Linux
 ./start.sh
