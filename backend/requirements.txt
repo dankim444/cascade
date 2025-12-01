@@ -55,3 +55,6 @@ plotly==6.5.0
 matplotlib==3.10.7
 seaborn==0.13.2
 kaleido==1.2.0
+# Machine Learning libraries
+scikit-learn==1.5.2
+joblib==1.4.2

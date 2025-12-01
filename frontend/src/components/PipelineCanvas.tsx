@@ -17,11 +17,15 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { DataNode } from './nodes/DataNode';
 import { TransformNode } from './nodes/TransformNode';
+import { VisualizationNode } from './nodes/VisualizationNode';
+import { MLNode } from './nodes/MLNode';
 import { Play, Trash2, Eye } from 'lucide-react';
 
 const nodeTypes = {
   dataNode: DataNode,
   transformNode: TransformNode,
+  visualizationNode: VisualizationNode,
+  mlNode: MLNode,
 };
 
 interface PipelineCanvasProps {

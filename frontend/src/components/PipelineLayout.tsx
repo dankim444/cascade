@@ -5,6 +5,7 @@ import { NodeConfigPanel } from './NodeConfigPanel';
 import { DataUpload } from './DataUpload';
 import { ResultsViewer } from './ResultsViewer';
 import { NodeDataPreview } from './NodeDataPreview';
+import { MLResultsDisplay } from './MLResultsDisplay';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { datasetAPI, pipelineAPI } from '../services/api';
@@ -40,6 +41,8 @@ export const PipelineLayout: React.FC = () => {
   const [nodePreviewLoading, setNodePreviewLoading] = useState(false);
   const [showDatasetManager, setShowDatasetManager] = useState(false);
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null);
+  const [showMLResults, setShowMLResults] = useState(false);
+  const [mlResultsData, setMLResultsData] = useState<any>(null);
 
   const handleAddDataNode = (dataset: any) => {
     const newNode: FlowNode = {
@@ -88,12 +91,60 @@ export const PipelineLayout: React.FC = () => {
     setShowAddMenu(false);
   };
 
+  const handleAddMLNode = (operation: string) => {
+    const operationLabels: Record<string, string> = {
+      ml_regression: 'Regression Model',
+      ml_classification: 'Classification Model',
+      ml_clustering: 'Clustering Model',
+    };
+
+    const mlTypes: Record<string, 'regression' | 'classification' | 'clustering'> = {
+      ml_regression: 'regression',
+      ml_classification: 'classification',
+      ml_clustering: 'clustering',
+    };
+
+    // Find a suitable data source for this ML node
+    const dataNode = flowNodes.find(n => n.type === 'dataNode');
+    const dataKey = dataNode?.data.dataKey || datasets[0]?.dataKey;
+
+    const newNode: FlowNode = {
+      id: `ml-${operation}-${Date.now()}`,
+      type: 'mlNode',
+      position: { x: 300, y: 50 + flowNodes.length * 120 },
+      data: {
+        label: operationLabels[operation] || operation,
+        operation,
+        mlType: mlTypes[operation],
+        config: {},
+        status: 'pending',
+        dataKey, // Reference to input data
+      },
+    };
+    addFlowNode(newNode);
+    setShowAddMenu(false);
+  };
+
   const handleNodeSelect = useCallback((node: FlowNode | null) => {
     setSelectedFlowNode(node);
     setSelectedNode(node?.id || null);
   }, [setSelectedNode]);
 
   const handleNodeDoubleClick = useCallback(async (node: FlowNode) => {
+    // Check if this is an ML node with results
+    if (node.type === 'mlNode') {
+      const result = getNodeResult(node.id);
+      if (result && result.ml_results) {
+        setMLResultsData({
+          mlType: node.data.mlType,
+          results: result.ml_results,
+          data: result.outputData || [],
+        });
+        setShowMLResults(true);
+        return;
+      }
+    }
+
     // Show data preview for double-clicked node
     setShowNodePreview(true);
     setNodePreviewLoading(true);
@@ -112,8 +163,8 @@ export const PipelineLayout: React.FC = () => {
             schema: dataset.columns,
           });
         }
-      } else if (node.type === 'transformNode') {
-        // For transform nodes, check if we have executed results
+      } else if (node.type === 'transformNode' || node.type === 'mlNode') {
+        // For transform/ML nodes, check if we have executed results
         const result = getNodeResult(node.id);
         if (result && result.outputData) {
           setNodePreviewData({
@@ -154,8 +205,16 @@ export const PipelineLayout: React.FC = () => {
   const handleExecutePipeline = async () => {
     try {
       const result = await executePipeline();
-      setExecutionResult(result);
-      setShowResults(true);
+      
+      // Check if any node in the execution has ML results
+      const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
+      
+      // Only show generic results viewer if no ML results (ML results shown on node)
+      if (!hasMLResults) {
+        setExecutionResult(result);
+        setShowResults(true);
+      }
+      // If ML results exist, they're already displayed on the node - no popup needed
     } catch (error: any) {
       setExecutionResult({
         status: 'error',
@@ -168,8 +227,15 @@ export const PipelineLayout: React.FC = () => {
   const handleExecuteFromNode = async (nodeId: string) => {
     try {
       const result = await executeToNode(nodeId);
-      setExecutionResult(result);
-      setShowResults(true);
+      
+      // Check if this execution has ML results
+      const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
+      
+      // Only show generic results viewer if no ML results
+      if (!hasMLResults) {
+        setExecutionResult(result);
+        setShowResults(true);
+      }
     } catch (error: any) {
       setExecutionResult({
         status: 'error',
@@ -494,6 +560,24 @@ export const PipelineLayout: React.FC = () => {
                       </button>
                     )
                   )}
+                  
+                  <div className="border-t border-gray-200 my-2" />
+                  
+                  <div className="text-xs font-semibold text-gray-500 uppercase px-2 py-1">
+                    Machine Learning
+                  </div>
+                  {['ml_regression', 'ml_classification', 'ml_clustering'].map(
+                    (op) => (
+                      <button
+                        key={op}
+                        onClick={() => handleAddMLNode(op)}
+                        className="w-full text-left px-3 py-2 rounded hover:bg-indigo-50 text-sm capitalize"
+                        disabled={datasets.length === 0}
+                      >
+                        {op.replace('ml_', '').replace('_', ' ')}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -601,6 +685,16 @@ export const PipelineLayout: React.FC = () => {
       {/* Results Viewer */}
       {showResults && executionResult && (
         <ResultsViewer result={executionResult} onClose={() => setShowResults(false)} />
+      )}
+
+      {/* ML Results Display */}
+      {showMLResults && mlResultsData && (
+        <MLResultsDisplay
+          mlType={mlResultsData.mlType}
+          results={mlResultsData.results}
+          data={mlResultsData.data}
+          onClose={() => setShowMLResults(false)}
+        />
       )}
 
       {/* Node Data Preview */}

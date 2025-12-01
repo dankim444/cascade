@@ -222,7 +222,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     const nodesToExecute = buildPathToNode(targetNodeId);
     
     // Convert to backend format with proper data flow
-    const transformNodes = nodesToExecute.filter(node => node.type === 'transformNode');
+    const transformNodes = nodesToExecute.filter(node => node.type === 'transformNode' || node.type === 'mlNode');
     
     const pipeline = {
       nodes: transformNodes.map((node) => {
@@ -320,7 +320,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     try {
       // Mark nodes as running
       nodesToExecute.forEach(node => {
-        if (node.type === 'transformNode') {
+        if (node.type === 'transformNode' || node.type === 'mlNode') {
           get().updateFlowNode(node.id, { status: 'running' });
         }
       });
@@ -362,10 +362,17 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       // Update all executed nodes with success
       if (result.executionResults) {
         result.executionResults.forEach((nodeResult: any) => {
-          get().updateFlowNode(nodeResult.node_id, { 
+          const nodeUpdates: any = { 
             status: 'success',
             outputRows: nodeResult.row_count 
-          });
+          };
+          
+          // Add ML results to node data if present
+          if (nodeResult.ml_results) {
+            nodeUpdates.mlResults = nodeResult.ml_results;
+          }
+          
+          get().updateFlowNode(nodeResult.node_id, nodeUpdates);
           
           // Store detailed results
           get().setNodeResult(nodeResult.node_id, {
@@ -374,16 +381,27 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             outputData: nodeResult.preview,
             outputRows: nodeResult.row_count,
             outputSchema: nodeResult.output_schema,
+            ml_results: nodeResult.ml_results, // Include ML results
             timestamp: new Date()
           });
         });
       }
       
       // Also update the target node
-      get().updateFlowNode(targetNodeId, { 
+      const targetNodeUpdates: any = { 
         status: 'success',
         outputRows: result.outputRows 
-      });
+      };
+      
+      // Check if final result has ML results
+      if (result.executionResults && result.executionResults.length > 0) {
+        const lastResult = result.executionResults[result.executionResults.length - 1];
+        if (lastResult.ml_results) {
+          targetNodeUpdates.mlResults = lastResult.ml_results;
+        }
+      }
+      
+      get().updateFlowNode(targetNodeId, targetNodeUpdates);
       
       // Store final result
       get().setNodeResult(targetNodeId, {
@@ -392,6 +410,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         outputData: result.data,
         outputRows: result.outputRows,
         outputSchema: result.outputSchema,
+        ml_results: result.executionResults?.[result.executionResults.length - 1]?.ml_results,
         timestamp: new Date()
       });
       
@@ -401,7 +420,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       
       // Mark all executed nodes as error
       nodesToExecute.forEach(node => {
-        if (node.type === 'transformNode') {
+        if (node.type === 'transformNode' || node.type === 'mlNode') {
           get().updateFlowNode(node.id, { status: 'error' });
         }
       });

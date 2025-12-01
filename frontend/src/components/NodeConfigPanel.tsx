@@ -182,6 +182,30 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
                 availableColumns={availableColumns}
               />
             )}
+
+            {operation === 'ml_regression' && (
+              <MLRegressionConfigForm
+                config={config}
+                setConfig={setConfig}
+                availableColumns={availableColumns}
+              />
+            )}
+
+            {operation === 'ml_classification' && (
+              <MLClassificationConfigForm
+                config={config}
+                setConfig={setConfig}
+                availableColumns={availableColumns}
+              />
+            )}
+
+            {operation === 'ml_clustering' && (
+              <MLClusteringConfigForm
+                config={config}
+                setConfig={setConfig}
+                availableColumns={availableColumns}
+              />
+            )}
           </div>
         )}
 
@@ -621,6 +645,248 @@ const CalculateConfigForm: React.FC<{
         />
         <p className="text-xs text-gray-500 mt-1">
           Available columns: {availableColumns.join(', ')}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ML Configuration Forms
+const MLRegressionConfigForm: React.FC<{
+  config: any;
+  setConfig: (c: any) => void;
+  availableColumns: string[];
+}> = ({ config, setConfig, availableColumns }) => {
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(config.featureColumns || []);
+
+  const toggleFeature = (col: string) => {
+    const newFeatures = selectedFeatures.includes(col)
+      ? selectedFeatures.filter(c => c !== col)
+      : [...selectedFeatures, col];
+    setSelectedFeatures(newFeatures);
+    setConfig({ ...config, featureColumns: newFeatures });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Model Type
+        </label>
+        <select
+          value={config.modelType || 'linear'}
+          onChange={(e) => setConfig({ ...config, modelType: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="linear">Linear Regression</option>
+          <option value="decision_tree">Decision Tree</option>
+          <option value="random_forest">Random Forest</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Feature Columns (Select multiple)
+        </label>
+        <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+          {availableColumns.map((col) => (
+            <label key={col} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedFeatures.includes(col)}
+                onChange={() => toggleFeature(col)}
+                className="rounded text-blue-600"
+              />
+              <span className="text-sm">{col}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Selected: {selectedFeatures.length} features
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Target Column (What to predict)
+        </label>
+        <select
+          value={config.targetColumn || ''}
+          onChange={(e) => setConfig({ ...config, targetColumn: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="">Select target column</option>
+          {availableColumns.map((col) => (
+            <option key={col} value={col}>{col}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Test Size (0.1 - 0.5)
+        </label>
+        <input
+          type="number"
+          min="0.1"
+          max="0.5"
+          step="0.05"
+          value={config.testSize || 0.2}
+          onChange={(e) => setConfig({ ...config, testSize: parseFloat(e.target.value) })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Percentage of data used for testing
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const MLClassificationConfigForm: React.FC<{
+  config: any;
+  setConfig: (c: any) => void;
+  availableColumns: string[];
+}> = ({ config, setConfig, availableColumns }) => {
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(config.featureColumns || []);
+
+  const toggleFeature = (col: string) => {
+    const newFeatures = selectedFeatures.includes(col)
+      ? selectedFeatures.filter(c => c !== col)
+      : [...selectedFeatures, col];
+    setSelectedFeatures(newFeatures);
+    setConfig({ ...config, featureColumns: newFeatures });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Model Type
+        </label>
+        <select
+          value={config.modelType || 'logistic'}
+          onChange={(e) => setConfig({ ...config, modelType: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="logistic">Logistic Regression</option>
+          <option value="decision_tree">Decision Tree</option>
+          <option value="random_forest">Random Forest</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Feature Columns (Select multiple)
+        </label>
+        <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+          {availableColumns.map((col) => (
+            <label key={col} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedFeatures.includes(col)}
+                onChange={() => toggleFeature(col)}
+                className="rounded text-blue-600"
+              />
+              <span className="text-sm">{col}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Selected: {selectedFeatures.length} features
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Target Column (Class to predict)
+        </label>
+        <select
+          value={config.targetColumn || ''}
+          onChange={(e) => setConfig({ ...config, targetColumn: e.target.value })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="">Select target column</option>
+          {availableColumns.map((col) => (
+            <option key={col} value={col}>{col}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Test Size (0.1 - 0.5)
+        </label>
+        <input
+          type="number"
+          min="0.1"
+          max="0.5"
+          step="0.05"
+          value={config.testSize || 0.2}
+          onChange={(e) => setConfig({ ...config, testSize: parseFloat(e.target.value) })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Percentage of data used for testing
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const MLClusteringConfigForm: React.FC<{
+  config: any;
+  setConfig: (c: any) => void;
+  availableColumns: string[];
+}> = ({ config, setConfig, availableColumns }) => {
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(config.featureColumns || []);
+
+  const toggleFeature = (col: string) => {
+    const newFeatures = selectedFeatures.includes(col)
+      ? selectedFeatures.filter(c => c !== col)
+      : [...selectedFeatures, col];
+    setSelectedFeatures(newFeatures);
+    setConfig({ ...config, featureColumns: newFeatures });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Feature Columns (Select multiple)
+        </label>
+        <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+          {availableColumns.map((col) => (
+            <label key={col} className="flex items-center space-x-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedFeatures.includes(col)}
+                onChange={() => toggleFeature(col)}
+                className="rounded text-blue-600"
+              />
+              <span className="text-sm">{col}</span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Selected: {selectedFeatures.length} features
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Number of Clusters
+        </label>
+        <input
+          type="number"
+          min="2"
+          max="10"
+          value={config.nClusters || 3}
+          onChange={(e) => setConfig({ ...config, nClusters: parseInt(e.target.value) })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Number of groups to create (2-10)
         </p>
       </div>
     </div>

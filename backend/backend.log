@@ -1,0 +1,134 @@
+INFO:     Will watch for changes in these directories: ['/Users/yashsamtani2/cascade/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [84795] using StatReload
+INFO:     Started server process [84810]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:54617 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54619 - "POST /api/upload HTTP/1.1" 200 OK
+Node pivot1 using data source: data_bbfd8fc4-77bb-4955-a7a8-722e292966e2
+INFO:     127.0.0.1:54621 - "POST /api/transformations/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54623 - "POST /api/upload HTTP/1.1" 200 OK
+Node agg1 using data source: data_35723b5a-1665-40f6-aafa-e4fa870ee23f
+INFO:     127.0.0.1:54625 - "POST /api/transformations/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54627 - "POST /api/upload HTTP/1.1" 200 OK
+Node dedup1 using data source: data_8c15d840-2099-4117-aa89-6bad79dda2ea
+INFO:     127.0.0.1:54629 - "POST /api/transformations/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54631 - "POST /api/upload HTTP/1.1" 200 OK
+Node fill1 using data source: data_1e32881f-7c01-4b12-aaac-c9be7b5c2764
+Node fill1 completed, output: data_35bbb83b2b164f68acc421d41703d6df
+INFO:     127.0.0.1:54633 - "POST /api/transformations/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54635 - "POST /api/upload HTTP/1.1" 200 OK
+Node window1 using data source: data_0f666ee1-4746-4f28-add4-b01e34670866
+Node window1 completed, output: data_2591df370d614f6cbf1ca19c86fe8526
+INFO:     127.0.0.1:54637 - "POST /api/transformations/run HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'test_integration.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [84810]
+INFO:     Started server process [85328]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:54902 - "POST /api/upload HTTP/1.1" 200 OK
+Node transform-deduplicate-1761254223608 using data source: data_05742568-3563-4ea3-bda7-6b0634b10505
+INFO:     127.0.0.1:54906 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node transform-deduplicate-1761254223608 using data source: data_05742568-3563-4ea3-bda7-6b0634b10505
+INFO:     127.0.0.1:54909 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node transform-deduplicate-1761254223608 using data source: data_05742568-3563-4ea3-bda7-6b0634b10505
+INFO:     127.0.0.1:54911 - "POST /api/transformations/run HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [85328]
+INFO:     Started server process [89423]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:54978 - "POST /api/upload HTTP/1.1" 200 OK
+Node pivot1 using data source: data_bc7d7357-e3d2-420f-b2e5-734bec487453
+INFO:     127.0.0.1:54980 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node aggregate1 using data source: data_bc7d7357-e3d2-420f-b2e5-734bec487453
+INFO:     127.0.0.1:54982 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node window1 using data source: data_bc7d7357-e3d2-420f-b2e5-734bec487453
+Node window1 completed, output: data_a99ba6bd0f594d4187f8050920f59da4
+INFO:     127.0.0.1:54984 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node deduplicate1 using data source: data_bc7d7357-e3d2-420f-b2e5-734bec487453
+INFO:     127.0.0.1:54986 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node fill1 using data source: data_bc7d7357-e3d2-420f-b2e5-734bec487453
+Node fill1 completed, output: data_729b5938a8874ad4bb28a198e34ab0a3
+INFO:     127.0.0.1:54988 - "POST /api/transformations/run HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [89423]
+INFO:     Started server process [90947]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:55171 - "OPTIONS /api/transformations/run HTTP/1.1" 200 OK
+Node transform-deduplicate-1761254223608 using data source: data_05742568-3563-4ea3-bda7-6b0634b10505
+INFO:     127.0.0.1:55171 - "POST /api/transformations/run HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55744 - "POST /api/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55748 - "OPTIONS /api/transformations/run HTTP/1.1" 200 OK
+Node transform-deduplicate-1761257182711 using data source: data_914c11b5-0e92-4686-a834-6c42e9ecc7b0
+INFO:     127.0.0.1:55748 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node transform-select-1761257217143 using data source: data_914c11b5-0e92-4686-a834-6c42e9ecc7b0
+Node transform-select-1761257217143 completed, output: select_20251023_180703
+INFO:     127.0.0.1:55753 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node transform-aggregate-1761257232791 using data source: data_914c11b5-0e92-4686-a834-6c42e9ecc7b0
+INFO:     127.0.0.1:55759 - "POST /api/transformations/run HTTP/1.1" 200 OK
+Node transform-aggregate-1761257232791 using data source: data_914c11b5-0e92-4686-a834-6c42e9ecc7b0
+INFO:     127.0.0.1:55763 - "POST /api/transformations/run HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [90947]
+INFO:     Started server process [33536]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [33536]
+INFO:     Started server process [40314]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40314]
+INFO:     Started server process [40529]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56035 - "GET /health HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40529]
+INFO:     Started server process [43256]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [43256]
+INFO:     Started server process [52264]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:49457 - "POST /api/upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49460 - "POST /api/upload HTTP/1.1" 200 OK
+WARNING:  StatReload detected changes in 'app/transformations/executor_fixed.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [52264]
+INFO:     Started server process [88383]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:60024 - "POST /api/upload HTTP/1.1" 200 OK

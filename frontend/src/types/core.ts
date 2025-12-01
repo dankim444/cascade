@@ -13,7 +13,7 @@ export interface Schema {
 
 // Transformation interface as specified
 export interface Transformation {
-  operation: 'filter' | 'select' | 'groupby' | 'join' | 'sort' | 'rename' | 'calculate';
+  operation: 'filter' | 'select' | 'groupby' | 'join' | 'sort' | 'rename' | 'calculate' | 'ml_regression' | 'ml_classification' | 'ml_clustering';
   params: string[]; // Define what this list has for each type of transform
 }
 
@@ -63,7 +63,10 @@ export type TransformOperation =
   | 'join'
   | 'sort'
   | 'rename'
-  | 'calculate';
+  | 'calculate'
+  | 'ml_regression'
+  | 'ml_classification'
+  | 'ml_clustering';
 
 // Configuration for different transform operations
 export interface FilterConfig {
@@ -114,4 +117,39 @@ export interface TransformParams {
     rightColumn: string;
     rightTable: string;
   };
+}
+
+// Machine Learning types
+export type MLModelType = 'linear' | 'logistic' | 'decision_tree' | 'random_forest' | 'kmeans';
+
+export interface MLRegressionConfig {
+  modelType: 'linear' | 'decision_tree' | 'random_forest';
+  featureColumns: string[];
+  targetColumn: string;
+  testSize: number;
+}
+
+export interface MLClassificationConfig {
+  modelType: 'logistic' | 'decision_tree' | 'random_forest';
+  featureColumns: string[];
+  targetColumn: string;
+  testSize: number;
+}
+
+export interface MLClusteringConfig {
+  featureColumns: string[];
+  nClusters: number;
+}
+
+export interface MLResults {
+  model_type: string;
+  metrics: Record<string, number>;
+  feature_columns: string[];
+  target_column?: string;
+  train_size?: number;
+  test_size?: number;
+  cluster_stats?: Array<{cluster: number; size: number; percentage: number}>;
+  cluster_centers?: number[][];
+  classes?: string[];
+  model_serialized: string;
 }
