@@ -14,6 +14,11 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
   const rowCount = result.outputRows || result.row_count || result.rows || outputData.length;
   const columns = outputData.length > 0 ? Object.keys(outputData[0]) : [];
   const message = result.message || '';
+  
+  // Get execution summary
+  const executionResults = result.executionResults || [];
+  const operationsPerformed = executionResults.map((r: any) => r.operation).filter(Boolean);
+  const executionTime = result.executionTime || 'N/A';
 
   const downloadCSV = () => {
     if (outputData.length === 0) return;
@@ -58,7 +63,15 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
               <h2 className="text-xl font-bold">
                 {isSuccess ? 'Pipeline Executed Successfully!' : 'Pipeline Execution Failed'}
               </h2>
-              {message && (
+              {isSuccess && (
+                <p className="text-sm opacity-90 mt-1">
+                  {operationsPerformed.length > 0 
+                    ? `Applied: ${operationsPerformed.map((op: string) => op.replace('_', ' ')).join(' → ')}` 
+                    : message || 'Data transformation completed'}
+                  {executionTime && ` • ${executionTime}`}
+                </p>
+              )}
+              {!isSuccess && message && (
                 <p className="text-sm opacity-90 mt-1">{message}</p>
               )}
             </div>
@@ -74,6 +87,26 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
         {/* Success Content */}
         {isSuccess && (
           <div className="flex-1 overflow-hidden flex flex-col">
+            {/* Pipeline Summary */}
+            {executionResults.length > 0 && (
+              <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
+                <div className="text-sm font-medium text-blue-900 mb-2">Pipeline Steps:</div>
+                <div className="flex flex-wrap gap-2">
+                  {executionResults.map((step: any, idx: number) => (
+                    <div key={idx} className="flex items-center space-x-2">
+                      <div className="bg-white border border-blue-300 rounded px-3 py-1 text-xs">
+                        <span className="font-medium text-blue-700">{step.operation?.replace('_', ' ') || 'transform'}</span>
+                        <span className="text-gray-500 ml-2">→ {step.row_count} rows</span>
+                      </div>
+                      {idx < executionResults.length - 1 && (
+                        <span className="text-blue-400">→</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Stats Bar */}
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center space-x-6">

@@ -8,6 +8,16 @@ import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.cluster import KMeans
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, classification_report, silhouette_score
+from sklearn.preprocessing import LabelEncoder
+import pickle
+import base64
 
 
 class TransformationExecutor:
@@ -178,6 +188,12 @@ class TransformationExecutor:
             return self._execute_rename(input_conn, params)
         elif operation == 'calculate':
             return self._execute_calculate(input_conn, params)
+        elif operation == 'ml_regression':
+            return self._execute_ml_regression(input_conn, params)
+        elif operation == 'ml_classification':
+            return self._execute_ml_classification(input_conn, params)
+        elif operation == 'ml_clustering':
+            return self._execute_ml_clustering(input_conn, params)
         else:
             raise ValueError(f"Unsupported operation: {operation}")
     
@@ -732,3 +748,313 @@ class TransformationExecutor:
             return 'string'
         else:
             return 'string'
+    
+    def _execute_ml_regression(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute ML Regression (Linear, Decision Tree, Random Forest)"""
+        ml_config = json.loads(params[0]) if params else {}
+        
+        model_type = ml_config.get('modelType', 'linear')
+        feature_columns = ml_config.get('featureColumns', [])
+        target_column = ml_config.get('targetColumn', '')
+        test_size = ml_config.get('testSize', 0.2)
+        
+        if not feature_columns or not target_column:
+            raise ValueError("Feature columns and target column must be specified")
+        
+        # Load data using pandas
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        df = pd.read_sql_query("SELECT * FROM data", conn)
+        conn.close()
+        
+        # Validate columns
+        missing_cols = [col for col in feature_columns + [target_column] if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Columns not found: {missing_cols}")
+        
+        # Prepare features and target
+        X = df[feature_columns].copy()
+        y = df[target_column].copy()
+        
+        # Handle categorical features with label encoding
+        label_encoders = {}
+        for col in X.columns:
+            if X[col].dtype == 'object':
+                le = LabelEncoder()
+                X[col] = le.fit_transform(X[col].astype(str))
+                label_encoders[col] = le
+        
+        # Handle missing values
+        X = X.fillna(X.mean())
+        y = y.fillna(y.mean())
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        
+        # Train model
+        if model_type == 'linear':
+            model = LinearRegression()
+        elif model_type == 'decision_tree':
+            model = DecisionTreeRegressor(random_state=42)
+        elif model_type == 'random_forest':
+            model = RandomForestRegressor(n_estimators=100, random_state=42)
+        else:
+            raise ValueError(f"Unsupported regression model type: {model_type}")
+        
+        model.fit(X_train, y_train)
+        
+        # Make predictions
+        y_pred = model.predict(X_test)
+        
+        # Calculate metrics
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y_test, y_pred)
+        
+        # Create results dataframe with predictions
+        results_df = X_test.copy()
+        results_df['actual'] = y_test.values
+        results_df['predicted'] = y_pred
+        results_df['error'] = results_df['actual'] - results_df['predicted']
+        
+        # Save results to new database
+        output_data_key = f"ml_regression_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        output_conn = sqlite3.connect(output_db_path)
+        results_df.to_sql('data', output_conn, if_exists='replace', index=False)
+        output_conn.close()
+        
+        # Serialize model
+        model_bytes = pickle.dumps(model)
+        model_b64 = base64.b64encode(model_bytes).decode('utf-8')
+        
+        # Create preview data
+        preview_data = results_df.head(10).to_dict('records')
+        
+        # Create output schema
+        output_schema = [{"name": col, "type": "number", "nullable": True} for col in results_df.columns]
+        
+        return {
+            'node_id': 'ml_regression_node',
+            'operation': 'ml_regression',
+            'output_data_key': output_data_key,
+            'output_schema': output_schema,
+            'row_count': len(results_df),
+            'preview': preview_data,
+            'ml_results': {
+                'model_type': model_type,
+                'metrics': {
+                    'mse': float(mse),
+                    'rmse': float(rmse),
+                    'r2_score': float(r2)
+                },
+                'feature_columns': feature_columns,
+                'target_column': target_column,
+                'train_size': len(X_train),
+                'test_size': len(X_test),
+                'model_serialized': model_b64
+            }
+        }
+    
+    def _execute_ml_classification(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute ML Classification (Logistic Regression, Decision Tree, Random Forest)"""
+        ml_config = json.loads(params[0]) if params else {}
+        
+        model_type = ml_config.get('modelType', 'logistic')
+        feature_columns = ml_config.get('featureColumns', [])
+        target_column = ml_config.get('targetColumn', '')
+        test_size = ml_config.get('testSize', 0.2)
+        
+        if not feature_columns or not target_column:
+            raise ValueError("Feature columns and target column must be specified")
+        
+        # Load data
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        df = pd.read_sql_query("SELECT * FROM data", conn)
+        conn.close()
+        
+        # Validate columns
+        missing_cols = [col for col in feature_columns + [target_column] if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Columns not found: {missing_cols}")
+        
+        # Prepare features and target
+        X = df[feature_columns].copy()
+        y = df[target_column].copy()
+        
+        # Encode target if it's categorical
+        target_encoder = None
+        if y.dtype == 'object':
+            target_encoder = LabelEncoder()
+            y = target_encoder.fit_transform(y.astype(str))
+        
+        # Handle categorical features
+        label_encoders = {}
+        for col in X.columns:
+            if X[col].dtype == 'object':
+                le = LabelEncoder()
+                X[col] = le.fit_transform(X[col].astype(str))
+                label_encoders[col] = le
+        
+        # Handle missing values
+        X = X.fillna(X.mean())
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
+        
+        # Train model
+        if model_type == 'logistic':
+            model = LogisticRegression(max_iter=1000, random_state=42)
+        elif model_type == 'decision_tree':
+            model = DecisionTreeClassifier(random_state=42)
+        elif model_type == 'random_forest':
+            model = RandomForestClassifier(n_estimators=100, random_state=42)
+        else:
+            raise ValueError(f"Unsupported classification model type: {model_type}")
+        
+        model.fit(X_train, y_train)
+        
+        # Make predictions
+        y_pred = model.predict(X_test)
+        
+        # Calculate metrics
+        accuracy = accuracy_score(y_test, y_pred)
+        
+        # Get class labels
+        classes = np.unique(y_train)
+        class_labels = target_encoder.inverse_transform(classes) if target_encoder else classes
+        
+        # Create results dataframe
+        results_df = X_test.copy()
+        results_df['actual'] = y_test
+        results_df['predicted'] = y_pred
+        results_df['correct'] = (results_df['actual'] == results_df['predicted']).astype(int)
+        
+        # Save results
+        output_data_key = f"ml_classification_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        output_conn = sqlite3.connect(output_db_path)
+        results_df.to_sql('data', output_conn, if_exists='replace', index=False)
+        output_conn.close()
+        
+        # Serialize model
+        model_bytes = pickle.dumps(model)
+        model_b64 = base64.b64encode(model_bytes).decode('utf-8')
+        
+        # Create preview data
+        preview_data = results_df.head(10).to_dict('records')
+        
+        # Create output schema
+        output_schema = [{"name": col, "type": "number", "nullable": True} for col in results_df.columns]
+        
+        return {
+            'node_id': 'ml_classification_node',
+            'operation': 'ml_classification',
+            'output_data_key': output_data_key,
+            'output_schema': output_schema,
+            'row_count': len(results_df),
+            'preview': preview_data,
+            'ml_results': {
+                'model_type': model_type,
+                'metrics': {
+                    'accuracy': float(accuracy)
+                },
+                'classes': [str(c) for c in class_labels],
+                'feature_columns': feature_columns,
+                'target_column': target_column,
+                'train_size': len(X_train),
+                'test_size': len(X_test),
+                'model_serialized': model_b64
+            }
+        }
+    
+    def _execute_ml_clustering(self, input_conn: Dict[str, Any], params: List[str]) -> Dict[str, Any]:
+        """Execute ML Clustering (K-Means)"""
+        ml_config = json.loads(params[0]) if params else {}
+        
+        feature_columns = ml_config.get('featureColumns', [])
+        n_clusters = ml_config.get('nClusters', 3)
+        
+        if not feature_columns:
+            raise ValueError("Feature columns must be specified")
+        
+        # Load data
+        conn = sqlite3.connect(input_conn['sqlConnection'])
+        df = pd.read_sql_query("SELECT * FROM data", conn)
+        conn.close()
+        
+        # Validate columns
+        missing_cols = [col for col in feature_columns if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Columns not found: {missing_cols}")
+        
+        # Prepare features
+        X = df[feature_columns].copy()
+        
+        # Handle categorical features
+        label_encoders = {}
+        for col in X.columns:
+            if X[col].dtype == 'object':
+                le = LabelEncoder()
+                X[col] = le.fit_transform(X[col].astype(str))
+                label_encoders[col] = le
+        
+        # Handle missing values
+        X = X.fillna(X.mean())
+        
+        # Train KMeans model
+        model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        clusters = model.fit_predict(X)
+        
+        # Calculate silhouette score
+        silhouette = silhouette_score(X, clusters) if len(X) > n_clusters else 0
+        
+        # Create results dataframe
+        results_df = df.copy()
+        results_df['cluster'] = clusters
+        
+        # Calculate cluster statistics
+        cluster_stats = []
+        for i in range(n_clusters):
+            cluster_data = results_df[results_df['cluster'] == i]
+            cluster_stats.append({
+                'cluster': int(i),
+                'size': len(cluster_data),
+                'percentage': float(len(cluster_data) / len(results_df) * 100)
+            })
+        
+        # Save results
+        output_data_key = f"ml_clustering_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        output_db_path = f"data/{output_data_key}.db"
+        output_conn = sqlite3.connect(output_db_path)
+        results_df.to_sql('data', output_conn, if_exists='replace', index=False)
+        output_conn.close()
+        
+        # Serialize model
+        model_bytes = pickle.dumps(model)
+        model_b64 = base64.b64encode(model_bytes).decode('utf-8')
+        
+        # Create preview data
+        preview_data = results_df.head(10).to_dict('records')
+        
+        # Create output schema
+        output_schema = [{"name": col, "type": "string", "nullable": True} for col in results_df.columns]
+        
+        return {
+            'node_id': 'ml_clustering_node',
+            'operation': 'ml_clustering',
+            'output_data_key': output_data_key,
+            'output_schema': output_schema,
+            'row_count': len(results_df),
+            'preview': preview_data,
+            'ml_results': {
+                'model_type': 'kmeans',
+                'metrics': {
+                    'silhouette_score': float(silhouette),
+                    'n_clusters': n_clusters
+                },
+                'cluster_stats': cluster_stats,
+                'feature_columns': feature_columns,
+                'cluster_centers': model.cluster_centers_.tolist(),
+                'model_serialized': model_b64
+            }
+        }

@@ -1,0 +1,501 @@
+customer_id,name,age,city,membership_tier,signup_date
+1000,Customer 1000,75,Chicago,Bronze,2022-05-16
+1001,Customer 1001,50,Houston,Gold,2022-02-11
+1002,Customer 1002,61,Phoenix,Bronze,2020-05-31
+1003,Customer 1003,76,Chicago,Bronze,2022-07-08
+1004,Customer 1004,48,Chicago,Bronze,2023-05-09
+1005,Customer 1005,75,Houston,Gold,2022-09-08
+1006,Customer 1006,28,Chicago,Gold,2023-04-07
+1007,Customer 1007,21,,Bronze,2022-03-31
+1008,Customer 1008,76,Houston,Silver,2022-12-30
+1009,Customer 1009,35,New York,Bronze,2022-11-03
+1010,Customer 1010,21,Houston,Silver,2023-11-17
+1011,Customer 1011,66,Chicago,Bronze,2022-05-06
+1012,Customer 1012,51,New York,Platinum,2023-01-18
+1013,Customer 1013,46,Chicago,Bronze,2020-03-16
+1014,Customer 1014,41,Houston,Bronze,2022-01-06
+1015,Customer 1015,39,Chicago,Gold,2023-12-07
+1016,Customer 1016,19,New York,Silver,2023-01-04
+1017,Customer 1017,61,New York,Platinum,2023-05-01
+1018,Customer 1018,23,Chicago,Silver,2023-07-30
+1019,Customer 1019,59,Los Angeles,Platinum,2020-06-23
+1020,Customer 1020,42,Houston,Bronze,2020-08-11
+1021,Customer 1021,72,Houston,Gold,2021-05-23
+1022,Customer 1022,74,,Gold,2023-09-08
+1023,Customer 1023,38,Los Angeles,Silver,2023-09-23
+1024,Customer 1024,72,New York,Gold,2021-12-28
+1025,Customer 1025,76,Phoenix,Silver,2020-12-06
+1026,Customer 1026,33,Phoenix,Silver,2023-08-18
+1027,Customer 1027,48,Chicago,Platinum,2023-06-08
+1028,Customer 1028,31,Los Angeles,Silver,2020-03-31
+1029,Customer 1029,56,Los Angeles,Platinum,2023-02-27
+1030,Customer 1030,45,Houston,Gold,2023-08-14
+1031,Customer 1031,49,New York,Silver,2023-10-19
+1032,Customer 1032,45,Los Angeles,Silver,2023-08-17
+1033,Customer 1033,68,Phoenix,Bronze,2022-03-29
+1034,Customer 1034,72,New York,Silver,2021-11-10
+1035,Customer 1035,66,New York,Silver,2022-05-31
+1036,Customer 1036,26,Chicago,Bronze,2020-08-04
+1037,Customer 1037,75,Los Angeles,Bronze,2020-01-22
+1038,Customer 1038,62,Chicago,Gold,2020-07-20
+1039,Customer 1039,39,Los Angeles,Silver,2021-06-13
+1040,Customer 1040,49,Houston,Gold,2021-03-30
+1041,Customer 1041,22,Chicago,Gold,2022-11-11
+1042,Customer 1042,40,Chicago,Bronze,2022-11-28
+1043,Customer 1043,22,Phoenix,Platinum,2023-02-16
+1044,Customer 1044,59,Chicago,Gold,2023-04-03
+1045,Customer 1045,70,Los Angeles,Platinum,2023-11-09
+1046,Customer 1046,49,Phoenix,Silver,2023-03-24
+1047,Customer 1047,76,Chicago,Bronze,2021-03-28
+1048,Customer 1048,27,Chicago,Silver,2022-07-01
+1049,Customer 1049,76,,Silver,2022-02-05
+1050,Customer 1050,56,Chicago,Bronze,2022-03-12
+1051,Customer 1051,75,New York,Silver,2022-08-06
+1052,Customer 1052,32,Phoenix,Bronze,2023-10-23
+1053,Customer 1053,24,New York,Platinum,2023-04-20
+1054,Customer 1054,46,Phoenix,Silver,2023-11-15
+1055,Customer 1055,76,Houston,Bronze,2022-10-21
+1056,Customer 1056,64,Chicago,Gold,2020-11-04
+1057,Customer 1057,20,Chicago,Silver,2021-12-07
+1058,Customer 1058,36,Chicago,Platinum,2020-02-20
+1059,Customer 1059,27,Phoenix,Bronze,2022-09-15
+1060,Customer 1060,45,Chicago,Silver,2020-08-02
+1061,Customer 1061,46,New York,Silver,2021-08-28
+1062,Customer 1062,32,Chicago,Silver,2022-05-01
+1063,Customer 1063,52,Houston,Platinum,2020-06-24
+1064,Customer 1064,23,New York,Bronze,2020-08-25
+1065,Customer 1065,29,Chicago,Gold,2020-10-17
+1066,Customer 1066,64,Chicago,Gold,2021-12-14
+1067,Customer 1067,55,Los Angeles,Gold,2021-09-30
+1068,Customer 1068,30,Phoenix,Bronze,2021-12-03
+1069,Customer 1069,46,New York,Gold,2022-07-21
+1070,Customer 1070,36,Los Angeles,Platinum,2021-02-27
+1071,Customer 1071,20,Houston,Bronze,2022-12-03
+1072,Customer 1072,25,,Silver,2022-09-16
+1073,Customer 1073,25,New York,Platinum,2021-12-14
+1074,Customer 1074,72,Chicago,Silver,2022-09-02
+1075,Customer 1075,75,New York,Gold,2020-07-18
+1076,Customer 1076,37,Chicago,Platinum,2022-06-16
+1077,Customer 1077,64,Phoenix,Bronze,2023-11-27
+1078,Customer 1078,21,Chicago,Platinum,2022-07-15
+1079,Customer 1079,68,Houston,Silver,2021-10-15
+1080,Customer 1080,38,Chicago,Bronze,2020-05-17
+1081,Customer 1081,20,Houston,Platinum,2021-09-06
+1082,Customer 1082,62,,Platinum,2020-04-01
+1083,Customer 1083,25,Phoenix,Platinum,2023-12-26
+1084,Customer 1084,40,New York,Platinum,2020-08-23
+1085,Customer 1085,33,Houston,Bronze,2020-02-16
+1086,Customer 1086,30,Houston,Silver,2021-12-03
+1087,Customer 1087,20,Los Angeles,Platinum,2023-08-20
+1088,Customer 1088,65,Los Angeles,Bronze,2020-08-11
+1089,Customer 1089,26,Los Angeles,Silver,2023-10-18
+1090,Customer 1090,77,Chicago,Platinum,2020-12-02
+1091,Customer 1091,31,Los Angeles,Silver,2021-05-14
+1092,Customer 1092,30,Houston,Silver,2022-11-22
+1093,Customer 1093,70,Chicago,Bronze,2020-12-23
+1094,Customer 1094,74,Phoenix,Silver,2023-02-04
+1095,Customer 1095,24,New York,Bronze,2020-11-23
+1096,Customer 1096,32,Los Angeles,Platinum,2021-11-08
+1097,Customer 1097,24,Phoenix,Silver,2023-02-20
+1098,Customer 1098,55,Houston,Silver,2022-05-23
+1099,Customer 1099,51,New York,Gold,2022-08-04
+1100,Customer 1100,58,Phoenix,Platinum,2021-04-19
+1101,Customer 1101,39,New York,Platinum,2022-04-09
+1102,Customer 1102,41,Los Angeles,Gold,2023-07-13
+1103,Customer 1103,66,Houston,Gold,2021-01-12
+1104,Customer 1104,54,New York,Bronze,2021-01-16
+1105,Customer 1105,61,Phoenix,Bronze,2023-08-04
+1106,Customer 1106,18,Los Angeles,Silver,2023-09-08
+1107,Customer 1107,27,Los Angeles,Silver,2022-06-04
+1108,Customer 1108,60,Phoenix,Silver,2022-03-21
+1109,Customer 1109,33,Phoenix,Silver,2020-02-29
+1110,Customer 1110,63,New York,Bronze,2023-06-11
+1111,Customer 1111,25,Chicago,Platinum,2021-02-08
+1112,Customer 1112,73,Los Angeles,Silver,2022-07-09
+1113,Customer 1113,66,New York,Platinum,2023-04-27
+1114,Customer 1114,42,Phoenix,Silver,2022-05-29
+1115,Customer 1115,67,New York,Gold,2022-03-07
+1116,Customer 1116,29,Phoenix,Silver,2020-01-10
+1117,Customer 1117,42,Houston,Silver,2023-12-14
+1118,Customer 1118,34,Phoenix,Silver,2021-03-15
+1119,Customer 1119,77,Phoenix,Bronze,2021-02-25
+1120,Customer 1120,43,Phoenix,Gold,2021-07-24
+1121,Customer 1121,63,Chicago,Silver,2023-12-12
+1122,Customer 1122,65,,Silver,2020-05-08
+1123,Customer 1123,31,Los Angeles,Platinum,2023-03-28
+1124,Customer 1124,58,Los Angeles,Gold,2020-07-27
+1125,Customer 1125,53,New York,Silver,2023-01-04
+1126,Customer 1126,74,Chicago,Platinum,2021-01-17
+1127,Customer 1127,40,New York,Platinum,2022-01-19
+1128,Customer 1128,60,Los Angeles,Bronze,2021-10-29
+1129,Customer 1129,23,Los Angeles,Platinum,2021-02-07
+1130,Customer 1130,64,Houston,Silver,2022-07-26
+1131,Customer 1131,22,Phoenix,Bronze,2020-08-21
+1132,Customer 1132,60,Los Angeles,Bronze,2021-06-21
+1133,Customer 1133,42,New York,Silver,2023-10-05
+1134,Customer 1134,35,New York,Gold,2022-09-29
+1135,Customer 1135,79,Phoenix,Platinum,2022-12-16
+1136,Customer 1136,30,Phoenix,Bronze,2023-08-01
+1137,Customer 1137,60,Houston,Gold,2021-10-03
+1138,Customer 1138,31,Chicago,Silver,2023-05-07
+1139,Customer 1139,45,New York,Platinum,2022-03-06
+1140,Customer 1140,35,Phoenix,Platinum,2023-06-05
+1141,Customer 1141,76,New York,Bronze,2022-03-14
+1142,Customer 1142,77,Phoenix,Platinum,2023-04-17
+1143,Customer 1143,74,Los Angeles,Platinum,2020-08-21
+1144,Customer 1144,45,New York,Platinum,2021-12-13
+1145,Customer 1145,68,Los Angeles,Platinum,2021-12-21
+1146,Customer 1146,73,New York,Silver,2022-07-26
+1147,Customer 1147,44,Chicago,Gold,2023-06-18
+1148,Customer 1148,49,Houston,Silver,2020-12-19
+1149,Customer 1149,64,Los Angeles,Silver,2023-10-11
+1150,Customer 1150,26,Phoenix,Bronze,2023-12-16
+1151,Customer 1151,57,Chicago,Platinum,2021-09-01
+1152,Customer 1152,49,New York,Silver,2023-06-12
+1153,Customer 1153,37,Los Angeles,Platinum,2023-04-23
+1154,Customer 1154,45,New York,Silver,2020-06-22
+1155,Customer 1155,50,New York,Silver,2023-10-08
+1156,Customer 1156,21,New York,Bronze,2020-10-01
+1157,Customer 1157,63,Houston,Gold,2021-10-03
+1158,Customer 1158,74,Houston,Gold,2020-08-29
+1159,Customer 1159,51,Phoenix,Silver,2021-05-03
+1160,Customer 1160,65,Los Angeles,Bronze,2021-09-17
+1161,Customer 1161,20,Chicago,Platinum,2020-08-27
+1162,Customer 1162,43,Chicago,Platinum,2021-01-09
+1163,Customer 1163,25,Chicago,Silver,2022-02-03
+1164,Customer 1164,23,New York,Gold,2023-11-21
+1165,Customer 1165,33,Houston,Bronze,2020-10-16
+1166,Customer 1166,41,Los Angeles,Gold,2022-11-12
+1167,Customer 1167,65,New York,Platinum,2022-03-06
+1168,Customer 1168,56,Houston,Gold,2022-05-06
+1169,Customer 1169,47,Houston,Platinum,2023-05-06
+1170,Customer 1170,62,Los Angeles,Bronze,2020-10-09
+1171,Customer 1171,30,Los Angeles,Bronze,2023-03-23
+1172,Customer 1172,22,Los Angeles,Silver,2022-02-24
+1173,Customer 1173,42,New York,Silver,2022-05-16
+1174,Customer 1174,37,Phoenix,Gold,2021-01-15
+1175,Customer 1175,71,Los Angeles,Bronze,2022-09-23
+1176,Customer 1176,35,Phoenix,Bronze,2023-07-25
+1177,Customer 1177,64,New York,Silver,2023-01-05
+1178,Customer 1178,35,Phoenix,Platinum,2023-11-21
+1179,Customer 1179,19,Chicago,Gold,2023-08-14
+1180,Customer 1180,27,Phoenix,Gold,2020-12-20
+1181,Customer 1181,72,Los Angeles,Silver,2023-02-10
+1182,Customer 1182,62,New York,Bronze,2020-12-07
+1183,Customer 1183,67,Los Angeles,Silver,2022-09-29
+1184,Customer 1184,64,Chicago,Silver,2021-08-14
+1185,Customer 1185,29,Los Angeles,Silver,2020-10-14
+1186,Customer 1186,64,Los Angeles,Silver,2021-01-18
+1187,Customer 1187,30,Los Angeles,Platinum,2021-10-06
+1188,Customer 1188,67,Houston,Platinum,2022-07-12
+1189,Customer 1189,64,,Bronze,2023-06-22
+1190,Customer 1190,74,Los Angeles,Silver,2020-04-19
+1191,Customer 1191,72,Los Angeles,Platinum,2022-01-05
+1192,Customer 1192,28,Los Angeles,Bronze,2020-01-20
+1193,Customer 1193,36,New York,Silver,2022-09-19
+1194,Customer 1194,52,Houston,Gold,2020-10-06
+1195,Customer 1195,56,New York,Platinum,2021-02-03
+1196,Customer 1196,70,Houston,Bronze,2022-02-25
+1197,Customer 1197,43,Los Angeles,Gold,2023-02-24
+1198,Customer 1198,63,,Silver,2022-11-01
+1199,Customer 1199,31,Phoenix,Silver,2023-08-30
+1200,Customer 1200,71,Phoenix,Silver,2022-10-10
+1201,Customer 1201,62,Los Angeles,Platinum,2022-04-17
+1202,Customer 1202,61,New York,Bronze,2023-11-03
+1203,Customer 1203,41,Chicago,Gold,2022-10-04
+1204,Customer 1204,58,Houston,Bronze,2022-05-01
+1205,Customer 1205,18,Los Angeles,Platinum,2023-12-25
+1206,Customer 1206,68,Chicago,Bronze,2022-06-28
+1207,Customer 1207,60,Chicago,Platinum,2022-09-27
+1208,Customer 1208,72,Houston,Silver,2020-12-08
+1209,Customer 1209,39,Chicago,Gold,2020-06-18
+1210,Customer 1210,40,New York,Silver,2023-03-03
+1211,Customer 1211,73,New York,Bronze,2020-03-04
+1212,Customer 1212,71,New York,Silver,2021-03-27
+1213,Customer 1213,36,Chicago,Gold,2021-08-21
+1214,Customer 1214,35,New York,Silver,2020-03-07
+1215,Customer 1215,29,Houston,Gold,2021-07-16
+1216,Customer 1216,72,Chicago,Gold,2021-04-05
+1217,Customer 1217,45,Phoenix,Silver,2023-01-06
+1218,Customer 1218,45,Chicago,Platinum,2021-08-14
+1219,Customer 1219,77,Houston,Bronze,2020-12-10
+1220,Customer 1220,76,Phoenix,Platinum,2022-07-25
+1221,Customer 1221,50,Chicago,Platinum,2023-03-04
+1222,Customer 1222,36,New York,Silver,2022-10-11
+1223,Customer 1223,45,Los Angeles,Bronze,2023-01-30
+1224,Customer 1224,76,Los Angeles,Bronze,2022-11-12
+1225,Customer 1225,69,New York,Platinum,2020-08-19
+1226,Customer 1226,78,Los Angeles,Silver,2023-03-18
+1227,Customer 1227,79,Los Angeles,Bronze,2020-08-21
+1228,Customer 1228,66,New York,Platinum,2021-07-02
+1229,Customer 1229,54,New York,Bronze,2023-01-17
+1230,Customer 1230,43,Chicago,Silver,2022-01-21
+1231,Customer 1231,52,Chicago,Silver,2023-01-15
+1232,Customer 1232,51,New York,Silver,2020-03-26
+1233,Customer 1233,52,Houston,Bronze,2022-06-22
+1234,Customer 1234,57,Los Angeles,Gold,2023-01-23
+1235,Customer 1235,33,Chicago,Bronze,2021-03-23
+1236,Customer 1236,55,Los Angeles,Gold,2022-05-20
+1237,Customer 1237,30,Phoenix,Silver,2020-07-28
+1238,Customer 1238,79,New York,Platinum,2023-08-31
+1239,Customer 1239,40,Houston,Gold,2021-05-21
+1240,Customer 1240,77,Phoenix,Silver,2021-09-01
+1241,Customer 1241,71,Phoenix,Silver,2020-03-07
+1242,Customer 1242,39,Phoenix,Gold,2022-07-10
+1243,Customer 1243,33,New York,Platinum,2021-06-22
+1244,Customer 1244,45,Chicago,Silver,2021-12-14
+1245,Customer 1245,65,New York,Gold,2020-06-27
+1246,Customer 1246,52,Chicago,Platinum,2022-06-18
+1247,Customer 1247,77,Phoenix,Platinum,2020-08-28
+1248,Customer 1248,62,Phoenix,Silver,2021-04-30
+1249,Customer 1249,63,,Bronze,2021-03-05
+1250,Customer 1250,25,Chicago,Bronze,2023-04-19
+1251,Customer 1251,61,Phoenix,Silver,2023-11-12
+1252,Customer 1252,72,Los Angeles,Platinum,2021-12-19
+1253,Customer 1253,72,Houston,Silver,2023-12-26
+1254,Customer 1254,39,New York,Gold,2023-06-03
+1255,Customer 1255,38,Houston,Bronze,2023-07-19
+1256,Customer 1256,43,Los Angeles,Gold,2022-05-26
+1257,Customer 1257,57,Chicago,Silver,2020-12-05
+1258,Customer 1258,38,New York,Silver,2023-06-15
+1259,Customer 1259,42,New York,Platinum,2020-10-12
+1260,Customer 1260,58,Chicago,Platinum,2021-02-27
+1261,Customer 1261,18,Houston,Platinum,2021-02-27
+1262,Customer 1262,23,Phoenix,Gold,2020-05-01
+1263,Customer 1263,40,Houston,Platinum,2023-03-13
+1264,Customer 1264,68,Los Angeles,Silver,2021-12-19
+1265,Customer 1265,40,Phoenix,Platinum,2022-12-26
+1266,Customer 1266,60,Houston,Bronze,2021-07-29
+1267,Customer 1267,60,Chicago,Platinum,2023-05-07
+1268,Customer 1268,40,Los Angeles,Gold,2023-01-08
+1269,Customer 1269,49,Los Angeles,Bronze,2020-12-10
+1270,Customer 1270,47,Los Angeles,Bronze,2021-10-24
+1271,Customer 1271,30,Phoenix,Bronze,2023-12-12
+1272,Customer 1272,60,New York,Gold,2021-08-22
+1273,Customer 1273,35,Phoenix,Silver,2021-08-15
+1274,Customer 1274,40,Houston,Platinum,2023-03-18
+1275,Customer 1275,32,New York,Bronze,2021-07-01
+1276,Customer 1276,50,Houston,Bronze,2022-11-19
+1277,Customer 1277,38,New York,Bronze,2023-10-23
+1278,Customer 1278,74,Phoenix,Silver,2020-07-14
+1279,Customer 1279,56,Los Angeles,Silver,2020-10-04
+1280,Customer 1280,40,Chicago,Gold,2022-04-22
+1281,Customer 1281,44,Los Angeles,Silver,2020-05-01
+1282,Customer 1282,62,Phoenix,Platinum,2021-07-21
+1283,Customer 1283,61,New York,Gold,2023-09-05
+1284,Customer 1284,35,Los Angeles,Gold,2020-09-16
+1285,Customer 1285,41,Phoenix,Platinum,2023-12-07
+1286,Customer 1286,68,Houston,Platinum,2020-09-28
+1287,Customer 1287,64,Chicago,Platinum,2021-05-26
+1288,Customer 1288,57,Los Angeles,Gold,2020-10-26
+1289,Customer 1289,68,New York,Gold,2023-12-27
+1290,Customer 1290,59,Houston,Gold,2021-10-21
+1291,Customer 1291,24,Phoenix,Platinum,2021-05-21
+1292,Customer 1292,67,Chicago,Platinum,2023-10-16
+1293,Customer 1293,65,New York,Bronze,2022-03-15
+1294,Customer 1294,37,Phoenix,Silver,2022-09-29
+1295,Customer 1295,44,Phoenix,Bronze,2020-10-18
+1296,Customer 1296,23,Los Angeles,Platinum,2023-03-28
+1297,Customer 1297,44,Los Angeles,Gold,2023-07-19
+1298,Customer 1298,26,New York,Platinum,2021-07-04
+1299,Customer 1299,70,Phoenix,Silver,2023-07-09
+1300,Customer 1300,62,Los Angeles,Bronze,2022-04-28
+1301,Customer 1301,74,Chicago,Bronze,2022-02-07
+1302,Customer 1302,48,Chicago,Gold,2022-07-14
+1303,Customer 1303,38,Phoenix,Bronze,2020-06-03
+1304,Customer 1304,43,Los Angeles,Bronze,2023-07-21
+1305,Customer 1305,57,New York,Platinum,2020-07-09
+1306,Customer 1306,65,New York,Bronze,2022-04-05
+1307,Customer 1307,62,New York,Bronze,2022-11-21
+1308,Customer 1308,30,Chicago,Bronze,2021-07-23
+1309,Customer 1309,66,Los Angeles,Gold,2023-11-23
+1310,Customer 1310,40,Los Angeles,Gold,2022-01-25
+1311,Customer 1311,37,Chicago,Platinum,2022-07-20
+1312,Customer 1312,54,New York,Bronze,2022-09-26
+1313,Customer 1313,71,New York,Gold,2021-11-01
+1314,Customer 1314,70,Phoenix,Gold,2023-04-06
+1315,Customer 1315,45,Houston,Platinum,2020-01-06
+1316,Customer 1316,34,,Silver,2020-07-09
+1317,Customer 1317,45,Los Angeles,Bronze,2022-07-27
+1318,Customer 1318,58,Los Angeles,Gold,2023-07-24
+1319,Customer 1319,19,Houston,Platinum,2023-09-22
+1320,Customer 1320,42,Phoenix,Platinum,2023-11-29
+1321,Customer 1321,75,Houston,Platinum,2022-01-03
+1322,Customer 1322,67,New York,Gold,2020-05-09
+1323,Customer 1323,58,New York,Bronze,2022-12-30
+1324,Customer 1324,23,Los Angeles,Silver,2022-03-25
+1325,Customer 1325,28,Chicago,Bronze,2021-03-22
+1326,Customer 1326,74,Los Angeles,Platinum,2022-05-29
+1327,Customer 1327,78,Chicago,Platinum,2021-03-09
+1328,Customer 1328,55,Houston,Silver,2022-10-10
+1329,Customer 1329,23,New York,Bronze,2021-07-03
+1330,Customer 1330,62,Chicago,Platinum,2021-10-23
+1331,Customer 1331,28,Houston,Platinum,2021-08-03
+1332,Customer 1332,31,New York,Bronze,2021-11-22
+1333,Customer 1333,19,Chicago,Platinum,2023-01-25
+1334,Customer 1334,57,,Bronze,2023-03-29
+1335,Customer 1335,20,Los Angeles,Platinum,2020-09-24
+1336,Customer 1336,72,Los Angeles,Bronze,2023-03-05
+1337,Customer 1337,70,Houston,Silver,2022-09-20
+1338,Customer 1338,52,Los Angeles,Platinum,2021-12-04
+1339,Customer 1339,50,Phoenix,Silver,2023-10-29
+1340,Customer 1340,41,New York,Platinum,2020-04-09
+1341,Customer 1341,36,Houston,Platinum,2020-04-04
+1342,Customer 1342,35,Los Angeles,Gold,2020-07-22
+1343,Customer 1343,66,New York,Bronze,2023-07-06
+1344,Customer 1344,69,Chicago,Silver,2022-07-30
+1345,Customer 1345,78,Los Angeles,Silver,2020-02-03
+1346,Customer 1346,41,New York,Silver,2020-09-11
+1347,Customer 1347,62,Phoenix,Bronze,2020-11-19
+1348,Customer 1348,52,Chicago,Gold,2022-06-22
+1349,Customer 1349,79,Phoenix,Silver,2022-07-23
+1350,Customer 1350,18,New York,Bronze,2020-01-02
+1351,Customer 1351,53,Phoenix,Platinum,2022-05-26
+1352,Customer 1352,42,New York,Silver,2021-02-18
+1353,Customer 1353,62,New York,Silver,2023-11-11
+1354,Customer 1354,66,Phoenix,Gold,2020-09-27
+1355,Customer 1355,77,New York,Silver,2023-08-24
+1356,Customer 1356,79,Los Angeles,Silver,2021-09-10
+1357,Customer 1357,60,New York,Platinum,2020-11-21
+1358,Customer 1358,51,,Bronze,2021-07-15
+1359,Customer 1359,42,New York,Bronze,2020-07-10
+1360,Customer 1360,33,Houston,Gold,2023-09-02
+1361,Customer 1361,51,New York,Platinum,2022-01-08
+1362,Customer 1362,46,New York,Bronze,2021-05-27
+1363,Customer 1363,36,Phoenix,Platinum,2020-06-17
+1364,Customer 1364,40,Los Angeles,Bronze,2022-01-31
+1365,Customer 1365,36,Los Angeles,Platinum,2023-09-22
+1366,Customer 1366,42,Chicago,Gold,2023-08-21
+1367,Customer 1367,33,Phoenix,Silver,2020-12-04
+1368,Customer 1368,71,Phoenix,Gold,2020-04-16
+1369,Customer 1369,68,Los Angeles,Bronze,2022-03-22
+1370,Customer 1370,26,Phoenix,Gold,2023-07-05
+1371,Customer 1371,18,Los Angeles,Silver,2021-09-17
+1372,Customer 1372,59,Phoenix,Gold,2023-12-03
+1373,Customer 1373,36,New York,Bronze,2021-04-24
+1374,Customer 1374,50,Los Angeles,Bronze,2022-05-29
+1375,Customer 1375,51,Los Angeles,Gold,2023-09-04
+1376,Customer 1376,33,Houston,Silver,2020-07-05
+1377,Customer 1377,61,Phoenix,Gold,2023-12-12
+1378,Customer 1378,57,Phoenix,Silver,2020-07-13
+1379,Customer 1379,72,Los Angeles,Platinum,2020-01-03
+1380,Customer 1380,35,New York,Silver,2021-03-13
+1381,Customer 1381,51,New York,Platinum,2022-09-03
+1382,Customer 1382,42,New York,Gold,2020-06-08
+1383,Customer 1383,78,Phoenix,Silver,2020-09-28
+1384,Customer 1384,62,Houston,Platinum,2023-04-30
+1385,Customer 1385,23,Los Angeles,Platinum,2021-04-08
+1386,Customer 1386,38,Chicago,Platinum,2022-11-29
+1387,Customer 1387,75,Houston,Bronze,2023-10-24
+1388,Customer 1388,23,Chicago,Gold,2022-06-30
+1389,Customer 1389,49,Houston,Platinum,2020-01-20
+1390,Customer 1390,58,New York,Silver,2020-01-17
+1391,Customer 1391,65,Phoenix,Platinum,2023-11-25
+1392,Customer 1392,60,Chicago,Bronze,2021-12-04
+1393,Customer 1393,56,Houston,Gold,2020-09-03
+1394,Customer 1394,48,Phoenix,Bronze,2022-05-14
+1395,Customer 1395,59,Chicago,Bronze,2023-11-22
+1396,Customer 1396,27,Los Angeles,Bronze,2020-09-27
+1397,Customer 1397,47,Houston,Silver,2022-09-05
+1398,Customer 1398,74,Los Angeles,Gold,2020-05-25
+1399,Customer 1399,69,New York,Gold,2021-04-13
+1400,Customer 1400,35,Los Angeles,Silver,2022-02-23
+1401,Customer 1401,77,Los Angeles,Gold,2020-07-01
+1402,Customer 1402,41,Houston,Bronze,2020-07-28
+1403,Customer 1403,69,New York,Gold,2020-07-30
+1404,Customer 1404,78,Los Angeles,Silver,2021-10-03
+1405,Customer 1405,26,Phoenix,Bronze,2022-01-22
+1406,Customer 1406,48,Chicago,Silver,2021-09-04
+1407,Customer 1407,32,Los Angeles,Platinum,2020-10-07
+1408,Customer 1408,21,New York,Bronze,2022-02-22
+1409,Customer 1409,57,Los Angeles,Bronze,2020-09-29
+1410,Customer 1410,26,Chicago,Gold,2023-08-06
+1411,Customer 1411,62,New York,Bronze,2023-10-18
+1412,Customer 1412,26,Houston,Silver,2020-10-19
+1413,Customer 1413,43,New York,Gold,2020-05-20
+1414,Customer 1414,21,Houston,Platinum,2022-12-22
+1415,Customer 1415,34,New York,Silver,2023-02-27
+1416,Customer 1416,33,Chicago,Platinum,2020-01-18
+1417,Customer 1417,32,Chicago,Platinum,2023-06-03
+1418,Customer 1418,52,New York,Platinum,2023-08-24
+1419,Customer 1419,74,Los Angeles,Bronze,2020-12-02
+1420,Customer 1420,69,Chicago,Silver,2022-06-20
+1421,Customer 1421,22,Houston,Silver,2021-12-20
+1422,Customer 1422,72,Houston,Bronze,2021-03-12
+1423,Customer 1423,22,Phoenix,Gold,2023-07-10
+1424,Customer 1424,37,Houston,Platinum,2020-11-06
+1425,Customer 1425,32,Phoenix,Silver,2022-04-23
+1426,Customer 1426,35,New York,Bronze,2023-06-15
+1427,Customer 1427,64,New York,Platinum,2023-11-07
+1428,Customer 1428,19,New York,Gold,2022-06-25
+1429,Customer 1429,46,Los Angeles,Gold,2021-03-20
+1430,Customer 1430,30,Los Angeles,Platinum,2020-06-26
+1431,Customer 1431,21,Phoenix,Gold,2020-07-24
+1432,Customer 1432,59,Houston,Silver,2020-10-13
+1433,Customer 1433,62,Houston,Silver,2020-09-09
+1434,Customer 1434,27,New York,Silver,2023-04-22
+1435,Customer 1435,78,Chicago,Gold,2022-02-25
+1436,Customer 1436,48,Los Angeles,Silver,2021-12-20
+1437,Customer 1437,58,Los Angeles,Bronze,2022-05-29
+1438,Customer 1438,25,New York,Silver,2021-10-06
+1439,Customer 1439,20,Los Angeles,Silver,2020-10-13
+1440,Customer 1440,65,New York,Gold,2021-05-22
+1441,Customer 1441,63,Phoenix,Silver,2021-07-21
+1442,Customer 1442,26,Houston,Platinum,2023-08-13
+1443,Customer 1443,47,Chicago,Bronze,2020-06-21
+1444,Customer 1444,70,Houston,Gold,2021-05-23
+1445,Customer 1445,28,Houston,Bronze,2023-02-07
+1446,Customer 1446,52,Phoenix,Platinum,2023-05-15
+1447,Customer 1447,54,Los Angeles,Gold,2023-05-13
+1448,Customer 1448,78,Chicago,Gold,2023-05-29
+1449,Customer 1449,59,Los Angeles,Silver,2021-08-06
+1450,Customer 1450,30,Houston,Bronze,2023-11-15
+1451,Customer 1451,53,New York,Platinum,2020-02-24
+1452,Customer 1452,73,Houston,Platinum,2023-09-10
+1453,Customer 1453,30,Los Angeles,Gold,2021-09-09
+1454,Customer 1454,29,Houston,Silver,2021-02-24
+1455,Customer 1455,54,New York,Gold,2022-11-26
+1456,Customer 1456,27,Phoenix,Gold,2023-05-27
+1457,Customer 1457,77,Los Angeles,Gold,2022-11-09
+1458,Customer 1458,73,Houston,Gold,2021-01-21
+1459,Customer 1459,26,Los Angeles,Platinum,2022-03-13
+1460,Customer 1460,69,Phoenix,Platinum,2021-08-28
+1461,Customer 1461,24,Houston,Gold,2023-08-16
+1462,Customer 1462,19,Houston,Gold,2020-04-21
+1463,Customer 1463,71,Los Angeles,Silver,2021-05-05
+1464,Customer 1464,73,Los Angeles,Gold,2022-10-10
+1465,Customer 1465,77,New York,Platinum,2022-03-01
+1466,Customer 1466,40,Phoenix,Bronze,2020-08-18
+1467,Customer 1467,56,New York,Platinum,2021-05-08
+1468,Customer 1468,57,Houston,Silver,2022-10-20
+1469,Customer 1469,56,,Platinum,2023-07-30
+1470,Customer 1470,38,Houston,Bronze,2023-05-01
+1471,Customer 1471,40,Houston,Gold,2020-05-25
+1472,Customer 1472,46,Chicago,Bronze,2022-12-17
+1473,Customer 1473,31,Chicago,Gold,2020-01-25
+1474,Customer 1474,43,Houston,Gold,2022-01-09
+1475,Customer 1475,68,Los Angeles,Platinum,2021-10-10
+1476,Customer 1476,22,Houston,Platinum,2020-09-27
+1477,Customer 1477,72,Chicago,Platinum,2022-03-03
+1478,Customer 1478,48,Los Angeles,Silver,2023-03-10
+1479,Customer 1479,42,Houston,Platinum,2022-05-11
+1480,Customer 1480,48,Phoenix,Silver,2022-01-18
+1481,Customer 1481,67,Phoenix,Platinum,2023-01-23
+1482,Customer 1482,37,Houston,Gold,2023-10-30
+1483,Customer 1483,61,Los Angeles,Silver,2020-12-19
+1484,Customer 1484,72,Houston,Bronze,2022-08-22
+1485,Customer 1485,34,Houston,Silver,2020-05-29
+1486,Customer 1486,62,Chicago,Silver,2020-02-04
+1487,Customer 1487,19,Phoenix,Bronze,2023-04-17
+1488,Customer 1488,42,Chicago,Silver,2020-05-18
+1489,Customer 1489,30,Chicago,Gold,2020-01-29
+1490,Customer 1490,75,,Platinum,2021-06-20
+1491,Customer 1491,56,Chicago,Bronze,2021-03-17
+1492,Customer 1492,45,Phoenix,Platinum,2020-03-22
+1493,Customer 1493,59,,Gold,2020-05-03
+1494,Customer 1494,72,Phoenix,Bronze,2022-03-26
+1495,Customer 1495,23,Chicago,Platinum,2022-11-03
+1496,Customer 1496,20,Phoenix,Platinum,2021-08-09
+1497,Customer 1497,75,Chicago,Gold,2023-07-11
+1498,Customer 1498,52,Chicago,Platinum,2023-12-30
+1499,Customer 1499,35,Los Angeles,Gold,2022-10-23
