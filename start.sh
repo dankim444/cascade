@@ -11,7 +11,7 @@ if [ ! -d "frontend" ]; then
 fi
 
 # Check if backend exists
-if [ ! -d "backend" ]; then
+if [ ! -d "backend" ]; then~
     echo "❌ Error: Backend directory not found. Please run from cascade root."
     exit 1
 fi
