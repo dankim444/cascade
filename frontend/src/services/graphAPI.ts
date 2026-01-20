@@ -62,6 +62,7 @@ export interface SavedGraph {
   name: string;
   config: GraphConfig;
   data_key: string;
+  project_id?: string;
   created_at: string;
   updated_at?: string;
 }
@@ -70,6 +71,7 @@ export interface SaveGraphRequest {
   name: string;
   config: GraphConfig;
   data_key: string;
+  project_id?: string;
 }
 
 const API_BASE = 'http://localhost:8000/api/v1/graphs';
@@ -143,8 +145,11 @@ export const graphAPI = {
   },
 
   // Saved graphs API
-  async getSavedGraphs(): Promise<SavedGraph[]> {
-    const response = await fetch('http://localhost:8000/api/v1/saved-graphs', {
+  async getSavedGraphs(projectId?: string): Promise<SavedGraph[]> {
+    const url = projectId 
+      ? `http://localhost:8000/api/v1/saved-graphs?project_id=${projectId}`
+      : 'http://localhost:8000/api/v1/saved-graphs';
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
     if (!response.ok) {
