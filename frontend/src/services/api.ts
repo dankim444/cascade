@@ -13,6 +13,8 @@ interface Dataset {
   columns: Column[];
   rowCount: number;
   preview: Record<string, any>[];
+  dataKey?: string;
+  projectId?: string;
 }
 
 interface NodeData {
@@ -125,6 +127,31 @@ export const datasetAPI = {
 
   delete: async (id: string): Promise<any> => {
     const response = await api.delete(`/api/datasets/${id}`);
+    return response.data;
+  },
+
+  importFromDynamoDB: async (payload: {
+    tableName: string;
+    region?: string;
+    accessKeyId?: string;
+    secretAccessKey?: string;
+    sessionToken?: string;
+    endpointUrl?: string;
+    limit?: number;
+    datasetName?: string;
+    projectId?: string;
+  }): Promise<Dataset> => {
+    const response = await api.post('/api/datasets/dynamodb/import', {
+      table_name: payload.tableName,
+      region: payload.region,
+      access_key_id: payload.accessKeyId,
+      secret_access_key: payload.secretAccessKey,
+      session_token: payload.sessionToken,
+      endpoint_url: payload.endpointUrl,
+      limit: payload.limit,
+      dataset_name: payload.datasetName,
+      project_id: payload.projectId,
+    });
     return response.data;
   },
 };
