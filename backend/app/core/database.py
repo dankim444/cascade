@@ -31,6 +31,6 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from app.models import User, Dataset, Pipeline, SavedGraph
+    from app.models import User, Project, Dataset, Pipeline, SavedGraph
     Base.metadata.create_all(bind=engine)
 

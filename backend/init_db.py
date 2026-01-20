@@ -2,14 +2,14 @@
 Initialize the database - run this once to create tables
 """
 from app.core.database import engine, Base
-from app.models import User, Dataset, Pipeline, SavedGraph
+from app.models import User, Project, ProjectShare, Dataset, Pipeline, SavedGraph
 
 def init_db():
     """Create all database tables"""
     print("Creating database tables...")
     
     # Import all models to ensure they're registered with Base
-    from app.models import User, Dataset, Pipeline, SavedGraph
+    from app.models import User, Project, ProjectShare, Dataset, Pipeline, SavedGraph
     
     # Create all tables
     Base.metadata.create_all(bind=engine)
@@ -24,11 +24,17 @@ def init_db():
     for table in sorted(tables):
         print(f"   - {table}")
     
-    # Specifically check for saved_graphs
-    if 'saved_graphs' in tables:
-        print("✅ saved_graphs table ready for user-based graph storage!")
+    # Specifically check for projects table
+    if 'projects' in tables:
+        print("✅ projects table ready for project-based organization!")
     else:
-        print("⚠️  saved_graphs table not found - check SavedGraph model import")
+        print("⚠️  projects table not found - check Project model import")
+    
+    # Check for project_shares table
+    if 'project_shares' in tables:
+        print("✅ project_shares table ready for project sharing!")
+    else:
+        print("⚠️  project_shares table not found - check ProjectShare model import")
 
 if __name__ == "__main__":
     init_db()

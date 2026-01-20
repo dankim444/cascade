@@ -1,6 +1,44 @@
 // Core data types - redesigned to match specification
 // Updated to fix import issues
 
+export interface ProjectShare {
+  id: string;
+  sharedWithEmail: string;
+  sharedByEmail: string;
+  permission: 'view' | 'edit' | 'admin';
+  sharedAt: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  datasetCount: number;
+  pipelineCount: number;
+  graphCount: number;
+  isOwner?: boolean;
+  ownerEmail?: string;
+  permission?: 'view' | 'edit' | 'admin';
+}
+
+export interface ProjectDetails extends Project {
+  datasets: Dataset[];
+  pipelines: Pipeline[];
+  graphs: SavedGraph[];
+  shares?: ProjectShare[];
+}
+
+export interface SavedGraph {
+  id: string;
+  name: string;
+  config: any;
+  dataKey: string;
+  projectId?: string;
+  createdAt: string;
+}
+
 export interface Column {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'date';
@@ -44,6 +82,8 @@ export interface Dataset {
   rowCount: number;
   preview: Record<string, any>[];
   dataKey: string; // Key to reference in Data storage
+  projectId?: string;
+  uploadedAt?: string;
 }
 
 export interface Pipeline {
@@ -51,6 +91,7 @@ export interface Pipeline {
   name: string;
   nodes: Node[];
   dataConnections: DataConnection[]; // Active data connections
+  projectId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -14,6 +14,7 @@ import os
 
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.core.project_access import check_project_access, user_can_edit_project
 from app.models.user import User
 from app.models.dataset import Dataset
 from app.services.s3_service import s3_service
@@ -32,10 +33,16 @@ def _map_sqlite_type(sqlite_type: str) -> str:
 @router.post("/upload")
 async def upload_dataset(
     file: UploadFile = File(...),
+    project_id: str = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """Upload and process a dataset file with S3 storage"""
+    # If project_id is specified, check if user has edit access
+    if project_id:
+        if not user_can_edit_project(project_id, current_user.id, db):
+            raise HTTPException(status_code=403, detail="You don't have permission to upload datasets to this project")
+    
     try:
         # Read file content
         content = await file.read()
@@ -112,6 +119,7 @@ async def upload_dataset(
         dataset = Dataset(
             id=dataset_id,
             user_id=current_user.id,
+            project_id=project_id,
             name=file.filename.replace('.csv', ''),
             data_key=data_key,
             s3_csv_path=csv_s3_key,
@@ -133,6 +141,7 @@ async def upload_dataset(
             "rowCount": dataset.row_count,
             "preview": preview_data,
             "dataKey": dataset.data_key,
+            "projectId": dataset.project_id,
             "uploadedAt": dataset.uploaded_at.isoformat()
         }
         
@@ -141,11 +150,22 @@ async def upload_dataset(
 
 @router.get("")
 async def get_datasets(
+    project_id: str = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get all datasets for the current user"""
-    datasets = db.query(Dataset).filter(Dataset.user_id == current_user.id).all()
+    """Get all datasets for the current user, optionally filtered by project"""
+    if project_id:
+        # Check if user has access to this project
+        project, is_owner, permission = check_project_access(project_id, current_user.id, db)
+        if not project:
+            raise HTTPException(status_code=403, detail="You don't have access to this project")
+        
+        # Get all datasets for this project (regardless of who uploaded them)
+        datasets = db.query(Dataset).filter(Dataset.project_id == project_id).all()
+    else:
+        # Get only user's own datasets when no project specified
+        datasets = db.query(Dataset).filter(Dataset.user_id == current_user.id).all()
     
     return {
         "datasets": [
@@ -155,6 +175,7 @@ async def get_datasets(
                 "columns": ds.columns,
                 "rowCount": ds.row_count,
                 "dataKey": ds.data_key,
+                "projectId": ds.project_id,
                 "uploadedAt": ds.uploaded_at.isoformat()
             }
             for ds in datasets
@@ -168,13 +189,19 @@ async def get_dataset(
     db: Session = Depends(get_db)
 ):
     """Get specific dataset"""
-    dataset = db.query(Dataset).filter(
-        Dataset.id == dataset_id,
-        Dataset.user_id == current_user.id
-    ).first()
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # Check access: user owns the dataset OR has access to its project
+    has_access = dataset.user_id == current_user.id
+    if not has_access and dataset.project_id:
+        project, _, _ = check_project_access(dataset.project_id, current_user.id, db)
+        has_access = project is not None
+    
+    if not has_access:
+        raise HTTPException(status_code=403, detail="You don't have access to this dataset")
     
     return {
         "id": dataset.id,
@@ -193,13 +220,19 @@ async def get_dataset_preview(
     db: Session = Depends(get_db)
 ):
     """Get dataset preview data from S3"""
-    dataset = db.query(Dataset).filter(
-        Dataset.id == dataset_id,
-        Dataset.user_id == current_user.id
-    ).first()
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # Check access: user owns the dataset OR has access to its project
+    has_access = dataset.user_id == current_user.id
+    if not has_access and dataset.project_id:
+        project, _, _ = check_project_access(dataset.project_id, current_user.id, db)
+        has_access = project is not None
+    
+    if not has_access:
+        raise HTTPException(status_code=403, detail="You don't have access to this dataset")
     
     # Download database from S3
     db_content = s3_service.download_file(dataset.s3_db_path)
@@ -254,13 +287,18 @@ async def delete_dataset(
     from app.models.pipeline import Pipeline
     import json
     
-    dataset = db.query(Dataset).filter(
-        Dataset.id == dataset_id,
-        Dataset.user_id == current_user.id
-    ).first()
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
+    
+    # Check access: user owns the dataset OR has edit access to its project
+    can_delete = dataset.user_id == current_user.id
+    if not can_delete and dataset.project_id:
+        can_delete = user_can_edit_project(dataset.project_id, current_user.id, db)
+    
+    if not can_delete:
+        raise HTTPException(status_code=403, detail="You don't have permission to delete this dataset")
     
     try:
         # Find and delete pipelines that reference this dataset

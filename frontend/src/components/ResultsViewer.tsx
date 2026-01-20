@@ -1,13 +1,20 @@
-import React from 'react';
-import { X, CheckCircle, AlertCircle, Table, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, CheckCircle, AlertCircle, Table, Download, Save } from 'lucide-react';
+import { datasetAPI } from '../services/api';
 
 interface ResultsViewerProps {
   result: any;
   onClose: () => void;
+  projectId?: string;
+  pipelineId?: string;
+  onDatasetSaved?: () => void;
 }
 
-export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose }) => {
+export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, projectId, pipelineId, onDatasetSaved }) => {
   const isSuccess = result.status === 'success';
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedDatasetName, setSavedDatasetName] = useState<string | null>(result.outputDataset?.name || null);
 
   // Extract data from result
   const outputData = result.data || result.output_data || [];
@@ -46,6 +53,56 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleSaveAsDataset = async () => {
+    if (!projectId || outputData.length === 0) {
+      setSaveError('Cannot save: Missing project ID or no data');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      // Convert data to CSV format
+      const headers = columns.join(',');
+      const rows = outputData.map((row: any) => 
+        columns.map(col => {
+          const value = row[col];
+          if (value === null || value === undefined) return '';
+          const str = String(value);
+          return str.includes(',') ? `"${str.replace(/"/g, '""')}"` : str;
+        }).join(',')
+      );
+      const csv = [headers, ...rows].join('\n');
+      const csvBlob = new Blob([csv], { type: 'text/csv' });
+
+      // Get schema from result
+      const schema = result.outputSchema || columns.map((col: string) => ({
+        name: col,
+        type: 'string', // Default type, could be improved
+        nullable: true
+      }));
+
+      // Create a File object from the blob
+      const csvFile = new File([csvBlob], `pipeline_output_${Date.now()}.csv`, { type: 'text/csv' });
+
+      // Upload using the dataset API
+      const dataset = await datasetAPI.upload(csvFile, projectId);
+      
+      setSavedDatasetName(dataset.name);
+      if (onDatasetSaved) {
+        onDatasetSaved();
+      }
+      
+      alert(`Dataset saved successfully: ${dataset.name}`);
+    } catch (error: any) {
+      console.error('Failed to save dataset:', error);
+      setSaveError(error.message || 'Failed to save dataset');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -121,18 +178,59 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
                     {columns.length} columns
                   </span>
                 </div>
+                {(savedDatasetName || result.outputDataset) && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>
+                      {savedDatasetName 
+                        ? `Saved: ${savedDatasetName}` 
+                        : `Auto-saved as dataset: ${result.outputDataset.name}`}
+                    </span>
+                  </div>
+                )}
               </div>
               
-              {outputData.length > 0 && (
-                <button
-                  onClick={downloadCSV}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download CSV</span>
-                </button>
-              )}
+              <div className="flex items-center space-x-2">
+                {outputData.length > 0 && projectId && !savedDatasetName && !result.outputDataset && (
+                  <button
+                    onClick={handleSaveAsDataset}
+                    disabled={isSaving}
+                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    title="Save the pipeline output as a dataset in this project"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        <span>Save as Dataset</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {outputData.length > 0 && (
+                  <button
+                    onClick={downloadCSV}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Download CSV</span>
+                  </button>
+                )}
+              </div>
             </div>
+            
+            {saveError && (
+              <div className="px-6 py-3 bg-red-50 border-b border-red-200">
+                <div className="flex items-center space-x-2 text-red-700 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{saveError}</span>
+                </div>
+              </div>
+            )}
 
             {/* Data Table */}
             {outputData.length > 0 ? (
@@ -223,13 +321,35 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose })
         {/* Footer */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex justify-end space-x-3">
           {isSuccess && outputData.length > 0 && (
-            <button
-              onClick={downloadCSV}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <Download className="h-4 w-4" />
-              <span>Download Results</span>
-            </button>
+            <>
+              {projectId && !savedDatasetName && !result.outputDataset && (
+                <button
+                  onClick={handleSaveAsDataset}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                  title="Save the pipeline output as a dataset in this project"
+                >
+                  {isSaving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      <span>Save as Dataset</span>
+                    </>
+                  )}
+                </button>
+              )}
+              <button
+                onClick={downloadCSV}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download Results</span>
+              </button>
+            </>
           )}
           <button
             onClick={onClose}

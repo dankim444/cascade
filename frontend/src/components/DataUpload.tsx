@@ -21,10 +21,11 @@ import { datasetAPI } from '../services/api';
 import { CSVPreview } from './CSVPreview';
 
 interface DataUploadProps {
+  projectId?: string;
   onUploadComplete?: (dataset: Dataset) => void;
 }
 
-export const DataUpload: React.FC<DataUploadProps> = ({ onUploadComplete }) => {
+export const DataUpload: React.FC<DataUploadProps> = ({ projectId, onUploadComplete }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewDataset, setPreviewDataset] = useState<Dataset | null>(null);
@@ -58,7 +59,7 @@ export const DataUpload: React.FC<DataUploadProps> = ({ onUploadComplete }) => {
       }
 
       // Upload to backend
-      const dataset = await datasetAPI.upload(file);
+      const dataset = await datasetAPI.upload(file, projectId);
       
       // Show preview instead of immediately adding
       setPreviewDataset(dataset as Dataset);

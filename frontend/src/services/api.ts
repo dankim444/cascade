@@ -88,11 +88,15 @@ api.interceptors.response.use(
 
 // Dataset API
 export const datasetAPI = {
-  upload: async (file: File): Promise<Dataset> => {
+  upload: async (file: File, projectId?: string): Promise<Dataset> => {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await api.post('/api/datasets/upload', formData, {
+    const url = projectId 
+      ? `/api/datasets/upload?project_id=${projectId}`
+      : '/api/datasets/upload';
+    
+    const response = await api.post(url, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -101,8 +105,11 @@ export const datasetAPI = {
     return response.data;
   },
 
-  getAll: async (): Promise<Dataset[]> => {
-    const response = await api.get('/api/datasets');
+  getAll: async (projectId?: string): Promise<Dataset[]> => {
+    const url = projectId 
+      ? `/api/datasets?project_id=${projectId}`
+      : '/api/datasets';
+    const response = await api.get(url);
     return response.data.datasets;
   },
 
@@ -129,13 +136,21 @@ export const pipelineAPI = {
     return response.data;
   },
 
-  getAll: async (): Promise<Pipeline[]> => {
-    const response = await api.get('/api/pipelines');
+  getAll: async (projectId?: string): Promise<Pipeline[]> => {
+    const url = projectId 
+      ? `/api/pipelines?project_id=${projectId}`
+      : '/api/pipelines';
+    const response = await api.get(url);
     return response.data.pipelines;
   },
 
-  getById: async (id: string): Promise<Pipeline> => {
+  getById: async (id: string): Promise<any> => {
     const response = await api.get(`/api/pipelines/${id}`);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<any> => {
+    const response = await api.delete(`/api/pipelines/${id}`);
     return response.data;
   },
 

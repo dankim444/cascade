@@ -1,5 +1,9 @@
 // Re-export all types from core.ts to fix module resolution issues
 export type {
+  Project,
+  ProjectDetails,
+  ProjectShare,
+  SavedGraph,
   Column,
   Schema,
   Transformation,

@@ -55,8 +55,13 @@ interface WorkflowState {
   // Pipeline actions
   savePipeline: () => void;
   loadPipeline: (pipeline: PipelineType) => void;
-  executePipeline: () => Promise<any>;
-  executeToNode: (nodeId: string) => Promise<any>;
+  executePipeline: (pipelineId?: string, projectId?: string) => Promise<any>;
+  executeToNode: (nodeId: string, pipelineId?: string, projectId?: string) => Promise<any>;
+  
+  // Current pipeline context
+  currentPipelineId: string | null;
+  currentProjectId: string | null;
+  setPipelineContext: (pipelineId: string | null, projectId: string | null) => void;
 }
 
 export const useWorkflowStore = create<WorkflowState>((set, get) => ({
@@ -68,6 +73,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   dataConnections: [],
   datasets: [],
   selectedDatasetId: null,
+  currentPipelineId: null,
+  currentProjectId: null,
+  
+  setPipelineContext: (pipelineId: string | null, projectId: string | null) => {
+    set({ currentPipelineId: pipelineId, currentProjectId: projectId });
+  },
 
   // React Flow node actions
   setFlowNodes: (nodes: FlowNode[]) => {
@@ -192,7 +203,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
   },
 
-  executeToNode: async (targetNodeId: string) => {
+  executeToNode: async (targetNodeId: string, pipelineId?: string, projectId?: string) => {
     const state = get();
     
     // Build path from data sources to target node (topological order)
@@ -310,7 +321,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         sqlConnection: dc.sqlConnection,
         schema: dc.schema,
         rowCount: dc.rowCount
-      }))
+      })),
+      id: pipelineId || state.currentPipelineId || undefined,
+      projectId: projectId || state.currentProjectId || undefined
     };
     
     console.log('Executing to node:', targetNodeId);
@@ -436,7 +449,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
   },
 
-  executePipeline: async () => {
+  executePipeline: async (pipelineId?: string, projectId?: string) => {
     const state = get();
     
     // Find all leaf nodes (nodes with no outgoing edges)
@@ -447,7 +460,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     // Execute to the last leaf node (or first if multiple)
     if (leafNodes.length > 0) {
       const lastNode = leafNodes[leafNodes.length - 1];
-      return get().executeToNode(lastNode.id);
+      return get().executeToNode(lastNode.id, pipelineId, projectId);
     }
     
     throw new Error('No nodes to execute');

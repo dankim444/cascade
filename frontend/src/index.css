@@ -5,6 +5,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global styles - remove default margins and ensure full-width */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+}
+
 /* Enhanced ReactFlow connection styles */
 .react-flow__handle {
   cursor: crosshair !important;
