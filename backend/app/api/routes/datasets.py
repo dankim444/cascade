@@ -3,7 +3,7 @@ Dataset routes with authentication and S3 storage
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 import pandas as pd
 import sqlite3
 import io
@@ -11,6 +11,10 @@ import uuid
 from datetime import datetime
 import tempfile
 import os
+import boto3
+from decimal import Decimal
+import json
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -21,6 +25,17 @@ from app.services.s3_service import s3_service
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
+class DynamoDBImportRequest(BaseModel):
+    table_name: str = Field(..., min_length=1)
+    region: Optional[str] = None
+    access_key_id: Optional[str] = None
+    secret_access_key: Optional[str] = None
+    session_token: Optional[str] = None
+    endpoint_url: Optional[str] = None
+    limit: Optional[int] = None
+    dataset_name: Optional[str] = None
+    project_id: Optional[str] = None
+
 def _map_sqlite_type(sqlite_type: str) -> str:
     """Map SQLite types to our type system"""
     if sqlite_type.upper() in ['INTEGER', 'REAL']:
@@ -29,6 +44,152 @@ def _map_sqlite_type(sqlite_type: str) -> str:
         return 'string'
     else:
         return 'string'
+
+def _coerce_dynamo_value(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        if value % 1 == 0:
+            return int(value)
+        return float(value)
+    if isinstance(value, (dict, list, set, tuple)):
+        return json.dumps(value, default=str)
+    return value
+
+def _normalize_dynamo_items(items):
+    normalized = []
+    for item in items:
+        normalized_item = {}
+        for key, value in item.items():
+            normalized_item[key] = _coerce_dynamo_value(value)
+        normalized.append(normalized_item)
+    return normalized
+
+def _scan_dynamodb_table(
+    table,
+    limit: Optional[int] = None
+) -> List[dict]:
+    items: List[dict] = []
+    scan_kwargs = {}
+    exclusive_start_key = None
+    while True:
+        if exclusive_start_key:
+            scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
+        if limit is not None:
+            remaining = max(limit - len(items), 0)
+            if remaining == 0:
+                break
+            scan_kwargs["Limit"] = min(1000, remaining)
+        response = table.scan(**scan_kwargs)
+        items.extend(response.get("Items", []))
+        if limit is not None and len(items) >= limit:
+            items = items[:limit]
+            break
+        exclusive_start_key = response.get("LastEvaluatedKey")
+        if not exclusive_start_key:
+            break
+    return items
+
+@router.post("/dynamodb/import")
+async def import_dynamodb_dataset(
+    payload: DynamoDBImportRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Import a DynamoDB table into a dataset"""
+    if payload.project_id:
+        if not user_can_edit_project(payload.project_id, current_user.id, db):
+            raise HTTPException(status_code=403, detail="You don't have permission to import datasets to this project")
+    if payload.limit is not None and payload.limit <= 0:
+        raise HTTPException(status_code=400, detail="Limit must be greater than 0")
+    try:
+        session_kwargs = {}
+        if payload.access_key_id and payload.secret_access_key:
+            session_kwargs["aws_access_key_id"] = payload.access_key_id
+            session_kwargs["aws_secret_access_key"] = payload.secret_access_key
+        if payload.session_token:
+            session_kwargs["aws_session_token"] = payload.session_token
+        aws_region = payload.region or os.getenv("AWS_REGION", "us-east-1")
+        session = boto3.session.Session(region_name=aws_region, **session_kwargs)
+        dynamodb = session.resource("dynamodb", region_name=aws_region, endpoint_url=payload.endpoint_url)
+        table = dynamodb.Table(payload.table_name)
+        raw_items = _scan_dynamodb_table(table, limit=payload.limit)
+        if not raw_items:
+            raise HTTPException(status_code=404, detail="No items found in DynamoDB table")
+        items = _normalize_dynamo_items(raw_items)
+        df = pd.DataFrame(items)
+        dataset_id = str(uuid.uuid4())
+        data_key = f"data_{dataset_id}"
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.db') as tmp_db:
+            db_path = tmp_db.name
+        try:
+            conn = sqlite3.connect(db_path)
+            df.to_sql('data', conn, if_exists='replace', index=False)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(data)")
+            columns_info = cursor.fetchall()
+            columns = []
+            for col_info in columns_info:
+                col_name = col_info[1]
+                col_type = col_info[2]
+                nullable = not col_info[3]
+                columns.append({
+                    "name": col_name,
+                    "type": _map_sqlite_type(col_type),
+                    "nullable": nullable
+                })
+            cursor.execute("SELECT * FROM data LIMIT 10")
+            preview_rows = cursor.fetchall()
+            column_names = [desc[0] for desc in cursor.description]
+            preview_data = []
+            for row in preview_rows:
+                row_dict = {}
+                for i, value in enumerate(row):
+                    row_dict[column_names[i]] = value
+                preview_data.append(row_dict)
+            cursor.execute("SELECT COUNT(*) FROM data")
+            row_count = cursor.fetchone()[0]
+            conn.close()
+            csv_content = df.to_csv(index=False).encode("utf-8")
+            user_prefix = f"users/{current_user.id}"
+            csv_s3_key = f"{user_prefix}/datasets/{data_key}/original.csv"
+            db_s3_key = f"{user_prefix}/datasets/{data_key}/data.db"
+            s3_service.upload_file(csv_content, csv_s3_key, "text/csv")
+            with open(db_path, 'rb') as db_file:
+                db_content = db_file.read()
+                s3_service.upload_file(db_content, db_s3_key, "application/x-sqlite3")
+        finally:
+            if os.path.exists(db_path):
+                os.unlink(db_path)
+        dataset = Dataset(
+            id=dataset_id,
+            user_id=current_user.id,
+            project_id=payload.project_id,
+            name=payload.dataset_name or payload.table_name,
+            data_key=data_key,
+            s3_csv_path=csv_s3_key,
+            s3_db_path=db_s3_key,
+            columns=columns,
+            row_count=row_count,
+            file_size=len(csv_content)
+        )
+        db.add(dataset)
+        db.commit()
+        db.refresh(dataset)
+        return {
+            "id": dataset.id,
+            "name": dataset.name,
+            "columns": dataset.columns,
+            "rowCount": dataset.row_count,
+            "preview": preview_data,
+            "dataKey": dataset.data_key,
+            "projectId": dataset.project_id,
+            "uploadedAt": dataset.uploaded_at.isoformat()
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error importing DynamoDB table: {str(e)}")
 
 @router.post("/upload")
 async def upload_dataset(
