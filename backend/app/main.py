@@ -13,6 +13,7 @@ from app.core.project_access import check_project_access, user_can_edit_project
 from app.models.user import User
 from app.models.pipeline import Pipeline
 from app.api.routes import auth_router
+from app.api.routes.presence import router as presence_router
 from app.api.routes.datasets import router as datasets_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes import router as api_router
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(datasets_router)
 app.include_router(projects_router)
+app.include_router(presence_router)
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")

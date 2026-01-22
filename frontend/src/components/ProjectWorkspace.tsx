@@ -12,6 +12,7 @@ import { NodeDataPreview } from './NodeDataPreview';
 import { MLResultsDisplay } from './MLResultsDisplay';
 import { GraphsLayout } from './GraphsLayout';
 import { useWorkflowStore } from '../store/useWorkflowStore';
+import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
@@ -91,6 +92,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
+
+  const { otherUsers, cursors } = useProjectPresence(projectId);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -727,8 +730,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             </button>
           </div>
 
-          {/* Right: Share button and project info */}
+          {/* Right: Presence and share */}
           <div className="flex items-center space-x-3">
+            {otherUsers.length > 0 && (
+              <div className="flex items-center -space-x-2">
+                {otherUsers.map((presenceUser) => (
+                  <div
+                    key={presenceUser.userId}
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-white"
+                    style={{ backgroundColor: presenceUser.color }}
+                    title={presenceUser.fullName}
+                  >
+                    {presenceUser.initial}
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Shared indicator */}
             {project?.isOwner === false && (
               <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm">
@@ -753,6 +770,31 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
           </div>
         </div>
       </header>
+
+      {Object.keys(cursors).length > 0 && (
+        <div className="pointer-events-none fixed inset-0 z-30">
+          {Object.values(cursors).map((cursor) => (
+            <div
+              key={cursor.userId}
+              className="absolute left-0 top-0"
+              style={{ transform: `translate(${cursor.x}px, ${cursor.y}px)` }}
+            >
+              <div className="flex items-center space-x-2">
+                <div
+                  className="w-2.5 h-2.5 rounded-full shadow"
+                  style={{ backgroundColor: cursor.color }}
+                />
+                <div
+                  className="px-2 py-0.5 rounded-md text-xs text-white shadow"
+                  style={{ backgroundColor: cursor.color }}
+                >
+                  {cursor.fullName}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Secondary Toolbar - Pipeline specific */}
       {activeTab === 'pipeline' && (
