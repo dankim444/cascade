@@ -24,7 +24,8 @@ def _color_for_user(user_id: str) -> str:
         "#F97316",  # orange-500
         "#22C55E",  # green-500
     ]
-    idx = int(hashlib.sha256(user_id.encode("utf-8")).hexdigest(), 16) % len(colors)
+    idx = int(hashlib.sha256(user_id.encode(
+        "utf-8")).hexdigest(), 16) % len(colors)
     return colors[idx]
 
 
@@ -36,7 +37,8 @@ class PresenceManager:
     async def connect(self, project_id: str, user_info: Dict[str, Any], websocket: WebSocket) -> None:
         async with self._lock:
             room = self._rooms.setdefault(project_id, {})
-            room[user_info["userId"]] = {"socket": websocket, "user": user_info}
+            room[user_info["userId"]] = {
+                "socket": websocket, "user": user_info}
             snapshot = [entry["user"] for entry in room.values()]
 
         await websocket.send_json({
@@ -134,6 +136,7 @@ async def presence_ws(websocket: WebSocket):
                 payload = data.get("payload", {})
                 x = payload.get("x")
                 y = payload.get("y")
+                tab = payload.get("tab")
                 if isinstance(x, (int, float)) and isinstance(y, (int, float)):
                     await presence_manager.broadcast_cursor(project_id, {
                         "userId": user_info["userId"],
@@ -141,6 +144,18 @@ async def presence_ws(websocket: WebSocket):
                         "color": user_info["color"],
                         "x": x,
                         "y": y,
+                        "tab": tab,
+                    })
+            elif msg_type == "presence.tab":
+                payload = data.get("payload", {})
+                tab = payload.get("tab")
+                if isinstance(tab, str):
+                    await presence_manager._broadcast(project_id, {
+                        "type": "presence.tab",
+                        "payload": {
+                            "userId": user_info["userId"],
+                            "tab": tab,
+                        },
                     })
     except WebSocketDisconnect:
         pass

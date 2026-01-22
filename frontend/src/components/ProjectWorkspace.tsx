@@ -93,7 +93,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
 
-  const { otherUsers, cursors } = useProjectPresence(projectId);
+  const { otherUsers, cursors, userTabs } = useProjectPresence(projectId, activeTab);
+
+  const visibleCursors = Object.values(cursors).filter((cursor) => (
+    userTabs[cursor.userId] === activeTab
+  ));
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -771,9 +775,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         </div>
       </header>
 
-      {Object.keys(cursors).length > 0 && (
+      {visibleCursors.length > 0 && (
         <div className="pointer-events-none fixed inset-0 z-30">
-          {Object.values(cursors).map((cursor) => (
+          {visibleCursors.map((cursor) => (
             <div
               key={cursor.userId}
               className="absolute left-0 top-0"
