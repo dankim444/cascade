@@ -98,3 +98,4 @@ def user_can_edit_project(project_id: str, user_id: str, db: Session) -> bool:
     
     return permission in ("edit", "admin")
 
+
