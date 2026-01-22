@@ -1,16 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
-import { LoginForm } from './LoginForm';
-import { SignupForm } from './SignupForm';
 
-interface AuthGuardProps {
-  children: React.ReactNode;
-}
-
-export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
+export const AuthGuard: React.FC = () => {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-  const [showSignup, setShowSignup] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const init = async () => {
@@ -32,17 +27,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        {showSignup ? (
-          <SignupForm onSwitchToLogin={() => setShowSignup(false)} />
-        ) : (
-          <LoginForm onSwitchToSignup={() => setShowSignup(true)} />
-        )}
-      </div>
-    );
+    return <Navigate to="/signin" replace state={{ from: location }} />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 };
 
