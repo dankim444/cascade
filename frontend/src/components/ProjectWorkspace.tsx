@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
-  GitBranch, BarChart3, Layers, Settings, ChevronDown, Edit2, FileText, Share2, Users, User
+  GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User
 } from 'lucide-react';
 import { PipelineCanvasWithProvider } from './PipelineCanvas';
 import { NodeConfigPanel } from './NodeConfigPanel';
