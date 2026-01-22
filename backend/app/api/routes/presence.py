@@ -267,6 +267,14 @@ async def presence_ws(websocket: WebSocket):
                         "type": "node.update",
                         "payload": payload,
                     }, exclude=user_info["userId"])
+            elif msg_type == "edge.update":
+                payload = data.get("payload", {})
+                timestamp = payload.get("timestamp")
+                if isinstance(timestamp, (int, float)):
+                    await presence_manager._broadcast(project_id, {
+                        "type": "edge.update",
+                        "payload": payload,
+                    }, exclude=user_info["userId"])
             elif msg_type == "pipeline.execute":
                 if not (is_owner or permission == "admin"):
                     await websocket.send_json({

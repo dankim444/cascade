@@ -69,12 +69,15 @@ export const MLNode: React.FC<MLNodeProps> = ({ data, selected }) => {
 
   return (
     <div
-      className={`bg-white border-2 rounded-lg shadow-lg transition-all ${
+      className={`bg-white border-2 rounded-lg shadow-lg transition-all relative ${
         data.mlResults ? 'min-w-[240px]' : 'min-w-[200px]'
       } ${
         selected ? 'border-blue-500 shadow-xl' : statusClass
       }`}
     >
+      {data.lockedBy && (
+        <div className="absolute inset-0 bg-gray-200/40 rounded-lg pointer-events-none"></div>
+      )}
       {/* Input Handle */}
       <Handle
         type="target"
