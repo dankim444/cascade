@@ -9,6 +9,9 @@ interface NodeConfigPanelProps {
   datasets: Dataset[];
   onUpdateNode: (nodeId: string, updates: any) => void;
   onClose: () => void;
+  isLocked?: boolean;
+  lockedByName?: string;
+  isReadOnly?: boolean;
 }
 
 export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
@@ -16,6 +19,9 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   datasets,
   onUpdateNode,
   onClose,
+  isLocked = false,
+  lockedByName,
+  isReadOnly = false,
 }) => {
   const [config, setConfig] = useState<any>({});
   const [label, setLabel] = useState('');
@@ -34,6 +40,7 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const operation = selectedNode.data.operation;
 
   const handleSave = () => {
+    if (isLocked || isReadOnly) return;
     onUpdateNode(selectedNode.id, {
       label,
       config,
@@ -67,6 +74,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
   const availableColumns = getAvailableColumns();
 
+  const isDisabled = isLocked || isReadOnly;
+
   return (
     <div className="absolute top-0 right-0 w-96 h-full bg-white border-l border-gray-200 shadow-xl overflow-y-auto z-50">
       {/* Header */}
@@ -87,6 +96,12 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 
       {/* Content */}
       <div className="p-4 space-y-4">
+        {(isLocked || isReadOnly) && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg px-3 py-2">
+            {isReadOnly && 'Pipeline is executing. Editing is temporarily disabled.'}
+            {!isReadOnly && isLocked && `${lockedByName || 'Another user'} is editing this node.`}
+          </div>
+        )}
         {/* Node Label */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -97,7 +112,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder="Enter a descriptive label..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            disabled={isDisabled}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
           />
         </div>
 
@@ -213,7 +229,8 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         <div className="pt-4 border-t border-gray-200">
           <button
             onClick={handleSave}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            disabled={isDisabled}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
           >
             Save Configuration
           </button>

@@ -4,7 +4,8 @@ import {
   Brain,
   TrendingUp,
   Target,
-  Layers
+  Layers,
+  Lock
 } from 'lucide-react';
 
 interface MLNodeProps {
@@ -17,6 +18,7 @@ interface MLNodeProps {
     status?: 'pending' | 'running' | 'success' | 'error';
     config?: any;
     mlResults?: any; // ML training results
+    lockedBy?: string;
   };
   selected?: boolean;
 }
@@ -87,14 +89,25 @@ export const MLNode: React.FC<MLNodeProps> = ({ data, selected }) => {
       />
 
       {/* Node Header */}
-      <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 rounded-t-md flex items-center space-x-2">
-        <Icon className="h-4 w-4" />
-        <span className="font-semibold text-sm">{mlLabel}</span>
+      <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white px-4 py-2 rounded-t-md flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Icon className="h-4 w-4" />
+          <span className="font-semibold text-sm">{mlLabel}</span>
+        </div>
+        {data.lockedBy && (
+          <div className="flex items-center space-x-1 text-xs bg-white/20 px-2 py-0.5 rounded">
+            <Lock className="h-3 w-3" />
+            <span>Locked</span>
+          </div>
+        )}
       </div>
 
       {/* Node Content */}
       <div className="px-4 py-3">
         <div className="text-sm text-gray-700 mb-2 font-medium">{data.label}</div>
+        {data.lockedBy && (
+          <div className="text-[11px] text-gray-500">Locked by {data.lockedBy}</div>
+        )}
         
         {/* ML configuration preview */}
         {data.modelType && !data.mlResults && (
