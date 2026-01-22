@@ -88,6 +88,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [sharePermission, setSharePermission] = useState<'view' | 'edit' | 'admin'>('view');
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
 
@@ -237,6 +238,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     } catch (error) {
       console.error('Failed to remove share:', error);
       alert('Failed to remove share. Please try again.');
+    }
+  };
+
+  const handleUpdateSharePermission = async (
+    shareId: string,
+    email: string,
+    permission: 'view' | 'edit' | 'admin'
+  ) => {
+    setShareError('');
+    setUpdatingShareId(shareId);
+    try {
+      await projectAPI.updateShare(projectId, shareId, {
+        email,
+        permission,
+      });
+      setProjectShares(projectShares.map((share) => (
+        share.id === shareId ? { ...share, permission } : share
+      )));
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Failed to update permission';
+      setShareError(message);
+    } finally {
+      setUpdatingShareId(null);
     }
   };
 
@@ -1615,18 +1639,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                             <p className="text-sm font-medium text-gray-900">
                               {share.sharedWithEmail}
                             </p>
-                            <p className="text-xs text-gray-500 capitalize">
-                              {share.permission} access
-                            </p>
+                            <div className="mt-1">
+                              <select
+                                value={share.permission}
+                                onChange={(e) => handleUpdateSharePermission(
+                                  share.id,
+                                  share.sharedWithEmail,
+                                  e.target.value as 'view' | 'edit' | 'admin'
+                                )}
+                                disabled={!canManageShares || updatingShareId === share.id}
+                                className="text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-60"
+                              >
+                                <option value="view">View only</option>
+                                <option value="edit">Can edit</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleRemoveShare(share.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove access"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {canManageShares && (
+                          <button
+                            onClick={() => handleRemoveShare(share.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove access"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
