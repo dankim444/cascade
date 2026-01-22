@@ -17,12 +17,40 @@ type PresenceCursor = {
   tab?: string;
 };
 
+type LockHolder = {
+  userId: string;
+  fullName: string;
+};
+
+type PipelineStatus = {
+  status: 'idle' | 'running' | 'completed' | 'failed' | 'denied';
+  byUserId?: string;
+  byFullName?: string;
+  message?: string;
+};
+
+type NodeUpdatePayload = {
+  nodeId: string;
+  node: any;
+  timestamp: number;
+};
+
+type EdgeUpdatePayload = {
+  edges: any[];
+  timestamp: number;
+};
+
 type PresenceMessage =
-  | { type: 'presence.snapshot'; payload: { users: PresenceUser[] } }
+  | { type: 'presence.snapshot'; payload: { users: PresenceUser[]; locks?: Record<string, LockHolder>; pipelineStatus?: PipelineStatus } }
   | { type: 'presence.join'; payload: { user: PresenceUser } }
   | { type: 'presence.leave'; payload: { userId: string } }
   | { type: 'presence.cursor'; payload: PresenceCursor }
-  | { type: 'presence.tab'; payload: { userId: string; tab: string } };
+  | { type: 'presence.tab'; payload: { userId: string; tab: string } }
+  | { type: 'lock.granted'; payload: { nodeId: string; granted: boolean; holder?: LockHolder } }
+  | { type: 'lock.released'; payload: { nodeId: string; releasedBy: string } }
+  | { type: 'node.update'; payload: NodeUpdatePayload }
+  | { type: 'edge.update'; payload: EdgeUpdatePayload }
+  | { type: 'pipeline.status'; payload: PipelineStatus };
 
 const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
@@ -37,17 +65,28 @@ const getToken = (): string | null => {
   }
 };
 
-export const useProjectPresence = (projectId: string | null, activeTab?: string) => {
+type UseProjectPresenceOptions = {
+  activeTab?: string;
+  onNodeUpdate?: (payload: NodeUpdatePayload) => void;
+  onEdgeUpdate?: (payload: EdgeUpdatePayload) => void;
+};
+
+export const useProjectPresence = (projectId: string | null, options?: UseProjectPresenceOptions) => {
   const { user } = useAuthStore();
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [cursors, setCursors] = useState<Record<string, PresenceCursor>>({});
   const [userTabs, setUserTabs] = useState<Record<string, string>>({});
+  const [locks, setLocks] = useState<Record<string, LockHolder>>({});
+  const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>({ status: 'idle' });
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const cursorTimeoutRef = useRef<number | null>(null);
   const pendingCursorRef = useRef<{ x: number; y: number } | null>(null);
+  const nodeUpdateTimestampsRef = useRef<Record<string, number>>({});
+  const edgeUpdateTimestampRef = useRef<number>(0);
 
   const userId = user?.id ?? null;
+  const activeTab = options?.activeTab;
 
   useEffect(() => {
     if (!projectId || !userId) {
@@ -71,6 +110,8 @@ export const useProjectPresence = (projectId: string | null, activeTab?: string)
       setIsConnected(false);
       setOnlineUsers([]);
       setCursors({});
+      setLocks({});
+      setPipelineStatus({ status: 'idle' });
     };
 
     socket.onmessage = (event) => {
@@ -85,6 +126,12 @@ export const useProjectPresence = (projectId: string | null, activeTab?: string)
 
       if (message.type === 'presence.snapshot') {
         setOnlineUsers(message.payload.users);
+        if (message.payload.locks) {
+          setLocks(message.payload.locks);
+        }
+        if (message.payload.pipelineStatus) {
+          setPipelineStatus(message.payload.pipelineStatus);
+        }
       } else if (message.type === 'presence.join') {
         setOnlineUsers((prev) => {
           const exists = prev.some((u) => u.userId === message!.payload.user.userId);
@@ -101,6 +148,15 @@ export const useProjectPresence = (projectId: string | null, activeTab?: string)
         setUserTabs((prev) => {
           const next = { ...prev };
           delete next[message!.payload.userId];
+          return next;
+        });
+        setLocks((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((nodeId) => {
+            if (next[nodeId]?.userId === message!.payload.userId) {
+              delete next[nodeId];
+            }
+          });
           return next;
         });
       } else if (message.type === 'presence.cursor') {
@@ -121,6 +177,34 @@ export const useProjectPresence = (projectId: string | null, activeTab?: string)
           ...prev,
           [message.payload.userId]: message.payload.tab,
         }));
+      } else if (message.type === 'lock.granted') {
+        if (message.payload.holder) {
+          setLocks((prev) => ({
+            ...prev,
+            [message.payload.nodeId]: message.payload.holder!,
+          }));
+        }
+      } else if (message.type === 'lock.released') {
+        setLocks((prev) => {
+          const next = { ...prev };
+          delete next[message.payload.nodeId];
+          return next;
+        });
+      } else if (message.type === 'node.update') {
+        const payload = message.payload;
+        const lastTimestamp = nodeUpdateTimestampsRef.current[payload.nodeId] || 0;
+        if (payload.timestamp >= lastTimestamp) {
+          nodeUpdateTimestampsRef.current[payload.nodeId] = payload.timestamp;
+          options?.onNodeUpdate?.(payload);
+        }
+      } else if (message.type === 'edge.update') {
+        const payload = message.payload;
+        if (payload.timestamp >= edgeUpdateTimestampRef.current) {
+          edgeUpdateTimestampRef.current = payload.timestamp;
+          options?.onEdgeUpdate?.(payload);
+        }
+      } else if (message.type === 'pipeline.status') {
+        setPipelineStatus(message.payload);
       }
     };
 
@@ -177,11 +261,70 @@ export const useProjectPresence = (projectId: string | null, activeTab?: string)
     [onlineUsers, userId]
   );
 
+  const requestLock = (nodeId: string) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({
+      type: 'lock.request',
+      payload: { nodeId },
+    }));
+  };
+
+  const releaseLock = (nodeId: string) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({
+      type: 'lock.release',
+      payload: { nodeId },
+    }));
+  };
+
+  const sendNodeUpdate = (payload: NodeUpdatePayload) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    nodeUpdateTimestampsRef.current[payload.nodeId] = payload.timestamp;
+    socketRef.current.send(JSON.stringify({
+      type: 'node.update',
+      payload,
+    }));
+  };
+
+  const sendEdgeUpdate = (payload: EdgeUpdatePayload) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    edgeUpdateTimestampRef.current = payload.timestamp;
+    socketRef.current.send(JSON.stringify({
+      type: 'edge.update',
+      payload,
+    }));
+  };
+
+  const sendPipelineExecute = () => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({
+      type: 'pipeline.execute',
+      payload: {},
+    }));
+  };
+
+  const sendPipelineStatus = (status: PipelineStatus['status'], message?: string) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({
+      type: 'pipeline.status',
+      payload: { status, message },
+    }));
+  };
+
   return {
     onlineUsers,
     otherUsers,
     cursors,
     userTabs,
+    locks,
+    pipelineStatus,
     isConnected,
+    userId,
+    requestLock,
+    releaseLock,
+    sendNodeUpdate,
+    sendEdgeUpdate,
+    sendPipelineExecute,
+    sendPipelineStatus,
   };
 };

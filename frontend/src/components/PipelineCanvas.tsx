@@ -5,6 +5,8 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  applyNodeChanges,
+  applyEdgeChanges,
   Panel,
   ReactFlowProvider,
   MarkerType,
@@ -38,6 +40,7 @@ interface PipelineCanvasProps {
   onExecutePipeline?: () => void;
   onExecuteFromNode?: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
+  isReadOnly?: boolean;
 }
 
 export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
@@ -50,37 +53,48 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   onExecutePipeline,
   onExecuteFromNode,
   onDeleteNode,
+  isReadOnly = false,
 }) => {
-  const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
+  const [nodes, setNodes] = useNodesState(initialNodes);
+  const [edges, setEdges] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const nodesRef = useRef<Node[]>(initialNodes);
+  const edgesRef = useRef<Edge[]>(initialEdges);
+
+  React.useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  React.useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
 
   // Update parent when nodes change
   const handleNodesChange = useCallback(
     (changes: any) => {
-      onNodesChangeInternal(changes);
-      // Debounce or call immediately depending on your needs
-      setTimeout(() => {
-        onNodesChange?.(nodes);
-      }, 0);
+      if (isReadOnly) return;
+      const updated = applyNodeChanges(changes, nodesRef.current);
+      setNodes(updated);
+      onNodesChange?.(updated);
     },
-    [onNodesChangeInternal, onNodesChange, nodes]
+    [isReadOnly, onNodesChange, setNodes]
   );
 
   // Update parent when edges change
   const handleEdgesChange = useCallback(
     (changes: any) => {
-      onEdgesChangeInternal(changes);
-      setTimeout(() => {
-        onEdgesChange?.(edges);
-      }, 0);
+      if (isReadOnly) return;
+      const updated = applyEdgeChanges(changes, edgesRef.current);
+      setEdges(updated);
+      onEdgesChange?.(updated);
     },
-    [onEdgesChangeInternal, onEdgesChange, edges]
+    [isReadOnly, onEdgesChange, setEdges]
   );
 
   const onConnect = useCallback(
     (params: Connection) => {
+      if (isReadOnly) return;
       // Validate connection
       if (!params.source || !params.target) {
         console.warn('Invalid connection: missing source or target');
@@ -94,7 +108,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       }
 
       // Check if connection already exists
-      const existingConnection = edges.find(
+      const existingConnection = edgesRef.current.find(
         (edge) =>
           edge.source === params.source &&
           edge.target === params.target
@@ -121,14 +135,11 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
         },
       };
       
-      setEdges((eds) => [...eds, newEdge]);
-      
-      // Notify parent component
-      setTimeout(() => {
-        onEdgesChange?.([...edges, newEdge]);
-      }, 100);
+      const nextEdges = [...edgesRef.current, newEdge];
+      setEdges(nextEdges);
+      onEdgesChange?.(nextEdges);
     },
-    [setEdges, onEdgesChange, edges]
+    [isReadOnly, setEdges, onEdgesChange]
   );
 
   const handleNodeClick = useCallback(
@@ -152,12 +163,13 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   }, [onNodeSelect]);
 
   const handleDeleteSelected = useCallback(() => {
+    if (isReadOnly) return;
     if (selectedNode) {
       onDeleteNode?.(selectedNode.id);
       setSelectedNode(null);
       onNodeSelect?.(null);
     }
-  }, [selectedNode, onDeleteNode, onNodeSelect]);
+  }, [isReadOnly, selectedNode, onDeleteNode, onNodeSelect]);
 
   const handleExecuteFromSelected = useCallback(() => {
     if (selectedNode) {
@@ -247,7 +259,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
         <Panel position="top-right" className="bg-white rounded-lg shadow-lg p-3 space-y-2">
           <button
             onClick={onExecutePipeline}
-            className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+            disabled={isReadOnly}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             title="Execute entire pipeline"
           >
             <Play className="h-4 w-4" />
@@ -258,7 +271,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
             <>
               <button
                 onClick={handleExecuteFromSelected}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                disabled={isReadOnly}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 title="Execute pipeline up to this node"
               >
                 <Eye className="h-4 w-4" />
@@ -267,7 +281,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
 
               <button
                 onClick={handleDeleteSelected}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                disabled={isReadOnly}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 title="Delete selected node"
               >
                 <Trash2 className="h-4 w-4" />

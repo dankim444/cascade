@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
@@ -16,6 +16,7 @@ import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
+import { MarkerType } from 'reactflow';
 import type { ProjectDetails, ProjectShare } from '../types';
 
 interface PipelineInfo {
@@ -93,7 +94,68 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
 
-  const { otherUsers, cursors, userTabs } = useProjectPresence(projectId, activeTab);
+  const flowNodesRef = useRef(flowNodes);
+  const flowEdgesRef = useRef(flowEdges);
+  const currentLockNodeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    flowNodesRef.current = flowNodes;
+  }, [flowNodes]);
+
+  useEffect(() => {
+    flowEdgesRef.current = flowEdges;
+  }, [flowEdges]);
+
+  const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node: FlowNode; timestamp: number }) => {
+    const previous = flowNodesRef.current;
+    const existing = previous.find((node) => node.id === payload.nodeId);
+    if (existing) {
+      const nextNodes = previous.map((node) => (
+        node.id === payload.nodeId
+          ? { ...node, ...payload.node, data: { ...node.data, ...payload.node.data } }
+          : node
+      ));
+      setFlowNodes(nextNodes);
+    } else {
+      setFlowNodes([...previous, payload.node]);
+    }
+  }, [setFlowNodes]);
+
+  const normalizeEdges = useCallback((edges: any[]) => {
+    return edges.map((edge) => ({
+      ...edge,
+      animated: edge.animated ?? true,
+      type: edge.type || 'smoothstep',
+      style: edge.style || { stroke: '#94a3b8', strokeWidth: 2 },
+      markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed },
+    }));
+  }, []);
+
+  const handleRemoteEdgeUpdate = useCallback((payload: { edges: any[]; timestamp: number }) => {
+    setFlowEdges(normalizeEdges(payload.edges));
+  }, [normalizeEdges, setFlowEdges]);
+
+  const {
+    otherUsers,
+    cursors,
+    userTabs,
+    locks,
+    pipelineStatus,
+    userId,
+    requestLock,
+    releaseLock,
+    sendNodeUpdate,
+    sendEdgeUpdate,
+    sendPipelineExecute,
+    sendPipelineStatus,
+  } = useProjectPresence(projectId, {
+    activeTab,
+    onNodeUpdate: handleRemoteNodeUpdate,
+    onEdgeUpdate: handleRemoteEdgeUpdate,
+  });
+
+  const isPipelineExecuting = pipelineStatus.status === 'running';
+  const canExecutePipeline = project?.isOwner !== false || project?.permission === 'admin';
 
   const visibleCursors = Object.values(cursors).filter((cursor) => (
     userTabs[cursor.userId] === activeTab
@@ -351,9 +413,40 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   };
 
   const handleNodeSelect = useCallback((node: FlowNode | null) => {
+    if (node) {
+      const lock = locks[node.id];
+      const lockedByOther = lock && lock.userId !== userId;
+      if (lockedByOther) {
+        alert(`"${lock.fullName}" is editing this node right now.`);
+        return;
+      }
+    }
+    if (currentLockNodeIdRef.current && currentLockNodeIdRef.current !== node?.id) {
+      const currentLock = locks[currentLockNodeIdRef.current];
+      if (currentLock?.userId === userId) {
+        releaseLock(currentLockNodeIdRef.current);
+      }
+      currentLockNodeIdRef.current = null;
+    }
+
+    if (node) {
+      const lock = locks[node.id];
+      const lockedByOther = lock && lock.userId !== userId;
+      if (!lockedByOther && !isPipelineExecuting) {
+        requestLock(node.id);
+        currentLockNodeIdRef.current = node.id;
+      }
+    } else if (currentLockNodeIdRef.current) {
+      const currentLock = locks[currentLockNodeIdRef.current];
+      if (currentLock?.userId === userId) {
+        releaseLock(currentLockNodeIdRef.current);
+      }
+      currentLockNodeIdRef.current = null;
+    }
+
     setSelectedFlowNode(node);
     setSelectedNode(node?.id || null);
-  }, [setSelectedNode]);
+  }, [locks, requestLock, releaseLock, setSelectedNode, userId, isPipelineExecuting]);
 
   const handleNodeDoubleClick = useCallback(async (node: FlowNode) => {
     if (node.type === 'mlNode') {
@@ -416,13 +509,119 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }
   }, [datasets, getNodeResult]);
 
+  const stripLockMeta = useCallback((node: FlowNode) => {
+    const { lockedBy, ...restData } = node.data as any;
+    return { ...node, data: restData };
+  }, []);
+
   const handleUpdateNode = useCallback((nodeId: string, updates: any) => {
+    if (isPipelineExecuting) {
+      alert('Pipeline is running. Please wait until execution completes.');
+      return;
+    }
+    const lock = locks[nodeId];
+    if (lock && lock.userId !== userId) {
+      alert(`"${lock.fullName}" is editing this node right now.`);
+      return;
+    }
+    if (!lock && userId) {
+      requestLock(nodeId);
+    }
     updateFlowNode(nodeId, updates);
+    const existing = flowNodesRef.current.find((node) => node.id === nodeId);
+    if (existing) {
+      const updatedNode = {
+        ...existing,
+        data: { ...existing.data, ...updates },
+      };
+      sendNodeUpdate({
+        nodeId,
+        node: stripLockMeta(updatedNode),
+        timestamp: Date.now(),
+      });
+    }
     setSelectedFlowNode(null);
     setSelectedNode(null);
-  }, [updateFlowNode, setSelectedNode]);
+  }, [isPipelineExecuting, locks, requestLock, sendNodeUpdate, stripLockMeta, updateFlowNode, setSelectedNode, userId]);
+
+  const handleNodesChange = useCallback((nodes: FlowNode[]) => {
+    if (isPipelineExecuting) {
+      return;
+    }
+
+    const previous = flowNodesRef.current;
+    const nextNodes: FlowNode[] = nodes.map((node) => {
+      const prevNode = previous.find((prev) => prev.id === node.id);
+      const lock = locks[node.id];
+      const lockedByOther = lock && lock.userId !== userId;
+      if (lockedByOther && prevNode) {
+        return prevNode;
+      }
+      return node;
+    });
+
+    nextNodes.forEach((node) => {
+      const prevNode = previous.find((prev) => prev.id === node.id);
+      const lock = locks[node.id];
+      const lockedByOther = lock && lock.userId !== userId;
+      if (lockedByOther) {
+        return;
+      }
+      const isNew = !prevNode;
+      const positionChanged = prevNode
+        && (prevNode.position.x !== node.position.x || prevNode.position.y !== node.position.y);
+      const dataChanged = prevNode
+        && JSON.stringify(prevNode.data) !== JSON.stringify(node.data);
+      if (isNew || positionChanged || dataChanged) {
+        sendNodeUpdate({
+          nodeId: node.id,
+          node: stripLockMeta(node),
+          timestamp: Date.now(),
+        });
+      }
+    });
+
+    setFlowNodes(nextNodes);
+  }, [isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
+
+  const handleEdgesChange = useCallback((edges: any[]) => {
+    if (isPipelineExecuting) {
+      return;
+    }
+    const nextEdges = normalizeEdges(edges);
+    setFlowEdges(nextEdges);
+    sendEdgeUpdate({
+      edges: nextEdges,
+      timestamp: Date.now(),
+    });
+  }, [isPipelineExecuting, normalizeEdges, sendEdgeUpdate, setFlowEdges]);
+
+  const displayNodes = useMemo(() => {
+    return flowNodes.map((node) => {
+      const lock = locks[node.id];
+      const lockedByOther = lock && lock.userId !== userId;
+      return {
+        ...node,
+        draggable: !lockedByOther && !isPipelineExecuting,
+        selectable: !lockedByOther,
+        data: {
+          ...node.data,
+          lockedBy: lockedByOther ? lock.fullName : undefined,
+        },
+      };
+    });
+  }, [flowNodes, locks, userId, isPipelineExecuting]);
 
   const handleExecutePipeline = async () => {
+    if (!canExecutePipeline) {
+      alert('Only admins can execute pipelines in this project.');
+      return;
+    }
+    if (isPipelineExecuting) {
+      alert('Pipeline execution is already running.');
+      return;
+    }
+    sendPipelineExecute();
     try {
       const result = await executePipeline(currentPipelineId || undefined, projectId);
       const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
@@ -446,16 +645,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         setExecutionResult(result);
         setShowResults(true);
       }
+      sendPipelineStatus('completed');
     } catch (error: any) {
       setExecutionResult({
         status: 'error',
         error: error.message,
       });
       setShowResults(true);
+      sendPipelineStatus('failed', error.message);
     }
   };
 
   const handleExecuteFromNode = async (nodeId: string) => {
+    if (!canExecutePipeline) {
+      alert('Only admins can execute pipelines in this project.');
+      return;
+    }
+    if (isPipelineExecuting) {
+      alert('Pipeline execution is already running.');
+      return;
+    }
+    sendPipelineExecute();
     try {
       const result = await executeToNode(nodeId, currentPipelineId || undefined, projectId);
       const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
@@ -479,18 +689,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         setExecutionResult(result);
         setShowResults(true);
       }
+      sendPipelineStatus('completed');
     } catch (error: any) {
       setExecutionResult({
         status: 'error',
         error: error.message,
       });
       setShowResults(true);
+      sendPipelineStatus('failed', error.message);
     }
   };
 
   const handleDeleteNode = useCallback((nodeId: string) => {
+    if (isPipelineExecuting) {
+      alert('Pipeline is running. Please wait until execution completes.');
+      return;
+    }
+    const lock = locks[nodeId];
+    if (lock && lock.userId !== userId) {
+      alert(`"${lock.fullName}" is editing this node right now.`);
+      return;
+    }
     deleteFlowNode(nodeId);
-  }, [deleteFlowNode]);
+  }, [deleteFlowNode, isPipelineExecuting, locks, userId]);
 
   const handleSavePipeline = async () => {
     try {
@@ -736,6 +957,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
 
           {/* Right: Presence and share */}
           <div className="flex items-center space-x-3">
+            {isPipelineExecuting && (
+              <div className="flex items-center space-x-2 px-3 py-1.5 bg-yellow-100 text-yellow-800 rounded-lg text-sm">
+                <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                <span>Pipeline executing</span>
+              </div>
+            )}
             {otherUsers.length > 0 && (
               <div className="flex items-center -space-x-2">
                 {otherUsers.map((presenceUser) => (
@@ -1381,15 +1608,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                 </div>
               ) : (
                 <PipelineCanvasWithProvider
-                  initialNodes={flowNodes}
+                  initialNodes={displayNodes}
                   initialEdges={flowEdges}
-                  onNodesChange={setFlowNodes}
-                  onEdgesChange={setFlowEdges}
+                  onNodesChange={handleNodesChange}
+                  onEdgesChange={handleEdgesChange}
                   onNodeSelect={handleNodeSelect}
                   onNodeDoubleClick={handleNodeDoubleClick}
                   onExecutePipeline={handleExecutePipeline}
                   onExecuteFromNode={handleExecuteFromNode}
                   onDeleteNode={handleDeleteNode}
+                  isReadOnly={isPipelineExecuting}
                 />
               )}
             </div>
@@ -1400,7 +1628,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                 selectedNode={selectedFlowNode}
                 datasets={datasets}
                 onUpdateNode={handleUpdateNode}
+                isLocked={Boolean(locks[selectedFlowNode.id] && locks[selectedFlowNode.id]?.userId !== userId)}
+                lockedByName={locks[selectedFlowNode.id]?.fullName}
+                isReadOnly={isPipelineExecuting}
                 onClose={() => {
+                  const currentLock = locks[selectedFlowNode.id];
+                  if (currentLock?.userId === userId) {
+                    releaseLock(selectedFlowNode.id);
+                    if (currentLockNodeIdRef.current === selectedFlowNode.id) {
+                      currentLockNodeIdRef.current = null;
+                    }
+                  }
                   setSelectedFlowNode(null);
                   setSelectedNode(null);
                 }}
