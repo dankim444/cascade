@@ -8,7 +8,8 @@ import {
   ArrowUpDown, 
   Type, 
   Calculator,
-  Zap 
+  Zap,
+  Lock
 } from 'lucide-react';
 
 interface TransformNodeProps {
@@ -18,6 +19,7 @@ interface TransformNodeProps {
     config?: any;
     status?: 'pending' | 'running' | 'success' | 'error';
     outputRows?: number;
+    lockedBy?: string;
   };
   selected?: boolean;
 }
@@ -135,14 +137,25 @@ export const TransformNode: React.FC<TransformNodeProps> = ({ data, selected }) 
       )}
 
       {/* Node Header */}
-      <div className={`bg-gradient-to-r ${colorClass} text-white px-4 py-2 rounded-t-md flex items-center space-x-2`}>
-        <Icon className="h-4 w-4" />
-        <span className="font-semibold text-sm capitalize">{data.operation}</span>
+      <div className={`bg-gradient-to-r ${colorClass} text-white px-4 py-2 rounded-t-md flex items-center justify-between`}>
+        <div className="flex items-center space-x-2">
+          <Icon className="h-4 w-4" />
+          <span className="font-semibold text-sm capitalize">{data.operation}</span>
+        </div>
+        {data.lockedBy && (
+          <div className="flex items-center space-x-1 text-xs bg-white/20 px-2 py-0.5 rounded">
+            <Lock className="h-3 w-3" />
+            <span>Locked</span>
+          </div>
+        )}
       </div>
 
       {/* Node Content */}
       <div className="px-4 py-3">
         <div className="text-sm text-gray-700 mb-2">{data.label}</div>
+        {data.lockedBy && (
+          <div className="text-[11px] text-gray-500">Locked by {data.lockedBy}</div>
+        )}
         
         {/* Status indicator */}
         {data.status && data.status !== 'pending' && (

@@ -6,7 +6,8 @@ import {
   ScatterChart,
   AreaChart,
   PieChart,
-  TrendingUp
+  TrendingUp,
+  Lock
 } from 'lucide-react';
 import type { ChartType } from '../../types';
 
@@ -18,6 +19,7 @@ interface VisualizationNodeProps {
     yColumn?: string;
     status?: 'pending' | 'running' | 'success' | 'error';
     config?: any;
+    lockedBy?: string;
   };
   selected?: boolean;
 }
@@ -94,14 +96,25 @@ export const VisualizationNode: React.FC<VisualizationNodeProps> = ({ data, sele
       />
 
       {/* Node Header */}
-      <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white px-4 py-2 rounded-t-md flex items-center space-x-2">
-        <Icon className="h-4 w-4" />
-        <span className="font-semibold text-sm">{chartLabel}</span>
+      <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white px-4 py-2 rounded-t-md flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Icon className="h-4 w-4" />
+          <span className="font-semibold text-sm">{chartLabel}</span>
+        </div>
+        {data.lockedBy && (
+          <div className="flex items-center space-x-1 text-xs bg-white/20 px-2 py-0.5 rounded">
+            <Lock className="h-3 w-3" />
+            <span>Locked</span>
+          </div>
+        )}
       </div>
 
       {/* Node Content */}
       <div className="px-4 py-3">
         <div className="text-sm text-gray-700 mb-2">{data.label}</div>
+        {data.lockedBy && (
+          <div className="text-[11px] text-gray-500">Locked by {data.lockedBy}</div>
+        )}
         
         {/* Chart configuration preview */}
         {data.xColumn && data.yColumn && (
