@@ -14,13 +14,15 @@ type PresenceCursor = {
   color: string;
   x: number;
   y: number;
+  tab?: string;
 };
 
 type PresenceMessage =
   | { type: 'presence.snapshot'; payload: { users: PresenceUser[] } }
   | { type: 'presence.join'; payload: { user: PresenceUser } }
   | { type: 'presence.leave'; payload: { userId: string } }
-  | { type: 'presence.cursor'; payload: PresenceCursor };
+  | { type: 'presence.cursor'; payload: PresenceCursor }
+  | { type: 'presence.tab'; payload: { userId: string; tab: string } };
 
 const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
@@ -35,10 +37,11 @@ const getToken = (): string | null => {
   }
 };
 
-export const useProjectPresence = (projectId: string | null) => {
+export const useProjectPresence = (projectId: string | null, activeTab?: string) => {
   const { user } = useAuthStore();
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const [cursors, setCursors] = useState<Record<string, PresenceCursor>>({});
+  const [userTabs, setUserTabs] = useState<Record<string, string>>({});
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const cursorTimeoutRef = useRef<number | null>(null);
@@ -95,11 +98,28 @@ export const useProjectPresence = (projectId: string | null) => {
           delete next[message!.payload.userId];
           return next;
         });
+        setUserTabs((prev) => {
+          const next = { ...prev };
+          delete next[message!.payload.userId];
+          return next;
+        });
       } else if (message.type === 'presence.cursor') {
         if (message.payload.userId === userId) return;
         setCursors((prev) => ({
           ...prev,
           [message.payload.userId]: message.payload,
+        }));
+        if (message.payload.tab) {
+          setUserTabs((prev) => ({
+            ...prev,
+            [message.payload.userId]: message.payload.tab as string,
+          }));
+        }
+      } else if (message.type === 'presence.tab') {
+        if (message.payload.userId === userId) return;
+        setUserTabs((prev) => ({
+          ...prev,
+          [message.payload.userId]: message.payload.tab,
         }));
       }
     };
@@ -124,6 +144,7 @@ export const useProjectPresence = (projectId: string | null) => {
             payload: {
               x: pending.x,
               y: pending.y,
+              tab: activeTab,
             },
           }));
         }
@@ -140,7 +161,16 @@ export const useProjectPresence = (projectId: string | null) => {
         cursorTimeoutRef.current = null;
       }
     };
-  }, [isConnected]);
+  }, [isConnected, activeTab]);
+
+  useEffect(() => {
+    if (!isConnected || !socketRef.current || !activeTab) return;
+    if (socketRef.current.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(JSON.stringify({
+      type: 'presence.tab',
+      payload: { tab: activeTab },
+    }));
+  }, [activeTab, isConnected]);
 
   const otherUsers = useMemo(
     () => onlineUsers.filter((u) => u.userId !== userId),
@@ -151,6 +181,7 @@ export const useProjectPresence = (projectId: string | null) => {
     onlineUsers,
     otherUsers,
     cursors,
+    userTabs,
     isConnected,
   };
 };
