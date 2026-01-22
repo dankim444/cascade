@@ -16,10 +16,13 @@ interface DataNodeProps {
 export const DataNode: React.FC<DataNodeProps> = ({ data, selected }) => {
   return (
     <div
-      className={`bg-white border-2 rounded-lg shadow-lg min-w-[200px] transition-all ${
+      className={`bg-white border-2 rounded-lg shadow-lg min-w-[200px] transition-all relative ${
         selected ? 'border-blue-500 shadow-xl' : 'border-gray-300'
       }`}
     >
+      {data.lockedBy && (
+        <div className="absolute inset-0 bg-gray-200/40 rounded-lg pointer-events-none"></div>
+      )}
       {/* Node Header */}
       <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-t-md flex items-center justify-between">
         <div className="flex items-center space-x-2">

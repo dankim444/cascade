@@ -5,6 +5,8 @@ import ReactFlow, {
   MiniMap,
   useNodesState,
   useEdgesState,
+  applyNodeChanges,
+  applyEdgeChanges,
   Panel,
   ReactFlowProvider,
   MarkerType,
@@ -53,8 +55,8 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   onDeleteNode,
   isReadOnly = false,
 }) => {
-  const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
+  const [nodes, setNodes] = useNodesState(initialNodes);
+  const [edges, setEdges] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const nodesRef = useRef<Node[]>(initialNodes);
@@ -72,25 +74,22 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   const handleNodesChange = useCallback(
     (changes: any) => {
       if (isReadOnly) return;
-      onNodesChangeInternal(changes);
-      // Debounce or call immediately depending on your needs
-      setTimeout(() => {
-        onNodesChange?.(nodesRef.current);
-      }, 0);
+      const updated = applyNodeChanges(changes, nodesRef.current);
+      setNodes(updated);
+      onNodesChange?.(updated);
     },
-    [isReadOnly, onNodesChangeInternal, onNodesChange]
+    [isReadOnly, onNodesChange, setNodes]
   );
 
   // Update parent when edges change
   const handleEdgesChange = useCallback(
     (changes: any) => {
       if (isReadOnly) return;
-      onEdgesChangeInternal(changes);
-      setTimeout(() => {
-        onEdgesChange?.(edgesRef.current);
-      }, 0);
+      const updated = applyEdgeChanges(changes, edgesRef.current);
+      setEdges(updated);
+      onEdgesChange?.(updated);
     },
-    [isReadOnly, onEdgesChangeInternal, onEdgesChange]
+    [isReadOnly, onEdgesChange, setEdges]
   );
 
   const onConnect = useCallback(
@@ -109,7 +108,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
       }
 
       // Check if connection already exists
-      const existingConnection = edges.find(
+      const existingConnection = edgesRef.current.find(
         (edge) =>
           edge.source === params.source &&
           edge.target === params.target
@@ -136,14 +135,11 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
         },
       };
       
-      setEdges((eds) => [...eds, newEdge]);
-      
-      // Notify parent component
-      setTimeout(() => {
-        onEdgesChange?.([...edges, newEdge]);
-      }, 100);
+      const nextEdges = [...edgesRef.current, newEdge];
+      setEdges(nextEdges);
+      onEdgesChange?.(nextEdges);
     },
-    [isReadOnly, setEdges, onEdgesChange, edges]
+    [isReadOnly, setEdges, onEdgesChange]
   );
 
   const handleNodeClick = useCallback(

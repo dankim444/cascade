@@ -16,6 +16,7 @@ import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
+import { MarkerType } from 'reactflow';
 import type { ProjectDetails, ProjectShare } from '../types';
 
 interface PipelineInfo {
@@ -94,11 +95,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [loadingShares, setLoadingShares] = useState(false);
 
   const flowNodesRef = useRef(flowNodes);
+  const flowEdgesRef = useRef(flowEdges);
   const currentLockNodeIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     flowNodesRef.current = flowNodes;
   }, [flowNodes]);
+
+  useEffect(() => {
+    flowEdgesRef.current = flowEdges;
+  }, [flowEdges]);
 
   const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node: FlowNode; timestamp: number }) => {
     const previous = flowNodesRef.current;
@@ -115,6 +121,20 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }
   }, [setFlowNodes]);
 
+  const normalizeEdges = useCallback((edges: any[]) => {
+    return edges.map((edge) => ({
+      ...edge,
+      animated: edge.animated ?? true,
+      type: edge.type || 'smoothstep',
+      style: edge.style || { stroke: '#94a3b8', strokeWidth: 2 },
+      markerEnd: edge.markerEnd || { type: MarkerType.ArrowClosed },
+    }));
+  }, []);
+
+  const handleRemoteEdgeUpdate = useCallback((payload: { edges: any[]; timestamp: number }) => {
+    setFlowEdges(normalizeEdges(payload.edges));
+  }, [normalizeEdges, setFlowEdges]);
+
   const {
     otherUsers,
     cursors,
@@ -125,11 +145,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     requestLock,
     releaseLock,
     sendNodeUpdate,
+    sendEdgeUpdate,
     sendPipelineExecute,
     sendPipelineStatus,
   } = useProjectPresence(projectId, {
     activeTab,
     onNodeUpdate: handleRemoteNodeUpdate,
+    onEdgeUpdate: handleRemoteEdgeUpdate,
   });
 
   const isPipelineExecuting = pipelineStatus.status === 'running';
@@ -561,6 +583,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
 
     setFlowNodes(nextNodes);
   }, [isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
+
+  const handleEdgesChange = useCallback((edges: any[]) => {
+    if (isPipelineExecuting) {
+      return;
+    }
+    const nextEdges = normalizeEdges(edges);
+    setFlowEdges(nextEdges);
+    sendEdgeUpdate({
+      edges: nextEdges,
+      timestamp: Date.now(),
+    });
+  }, [isPipelineExecuting, normalizeEdges, sendEdgeUpdate, setFlowEdges]);
 
   const displayNodes = useMemo(() => {
     return flowNodes.map((node) => {
@@ -1577,7 +1611,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                   initialNodes={displayNodes}
                   initialEdges={flowEdges}
                   onNodesChange={handleNodesChange}
-                  onEdgesChange={setFlowEdges}
+                  onEdgesChange={handleEdgesChange}
                   onNodeSelect={handleNodeSelect}
                   onNodeDoubleClick={handleNodeDoubleClick}
                   onExecutePipeline={handleExecutePipeline}

@@ -87,10 +87,13 @@ export const TransformNode: React.FC<TransformNodeProps> = ({ data, selected }) 
 
   return (
     <div
-      className={`bg-white border-2 rounded-lg shadow-lg min-w-[200px] transition-all ${
+      className={`bg-white border-2 rounded-lg shadow-lg min-w-[200px] transition-all relative ${
         selected ? 'border-blue-500 shadow-xl' : statusClass
       }`}
     >
+      {data.lockedBy && (
+        <div className="absolute inset-0 bg-gray-200/40 rounded-lg pointer-events-none"></div>
+      )}
       {/* Input Handles - Join nodes have TWO inputs */}
       {isJoinNode ? (
         <>

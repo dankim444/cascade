@@ -35,6 +35,11 @@ type NodeUpdatePayload = {
   timestamp: number;
 };
 
+type EdgeUpdatePayload = {
+  edges: any[];
+  timestamp: number;
+};
+
 type PresenceMessage =
   | { type: 'presence.snapshot'; payload: { users: PresenceUser[]; locks?: Record<string, LockHolder>; pipelineStatus?: PipelineStatus } }
   | { type: 'presence.join'; payload: { user: PresenceUser } }
@@ -44,6 +49,7 @@ type PresenceMessage =
   | { type: 'lock.granted'; payload: { nodeId: string; granted: boolean; holder?: LockHolder } }
   | { type: 'lock.released'; payload: { nodeId: string; releasedBy: string } }
   | { type: 'node.update'; payload: NodeUpdatePayload }
+  | { type: 'edge.update'; payload: EdgeUpdatePayload }
   | { type: 'pipeline.status'; payload: PipelineStatus };
 
 const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
@@ -62,6 +68,7 @@ const getToken = (): string | null => {
 type UseProjectPresenceOptions = {
   activeTab?: string;
   onNodeUpdate?: (payload: NodeUpdatePayload) => void;
+  onEdgeUpdate?: (payload: EdgeUpdatePayload) => void;
 };
 
 export const useProjectPresence = (projectId: string | null, options?: UseProjectPresenceOptions) => {
@@ -76,6 +83,7 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
   const cursorTimeoutRef = useRef<number | null>(null);
   const pendingCursorRef = useRef<{ x: number; y: number } | null>(null);
   const nodeUpdateTimestampsRef = useRef<Record<string, number>>({});
+  const edgeUpdateTimestampRef = useRef<number>(0);
 
   const userId = user?.id ?? null;
   const activeTab = options?.activeTab;
@@ -189,6 +197,12 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
           nodeUpdateTimestampsRef.current[payload.nodeId] = payload.timestamp;
           options?.onNodeUpdate?.(payload);
         }
+      } else if (message.type === 'edge.update') {
+        const payload = message.payload;
+        if (payload.timestamp >= edgeUpdateTimestampRef.current) {
+          edgeUpdateTimestampRef.current = payload.timestamp;
+          options?.onEdgeUpdate?.(payload);
+        }
       } else if (message.type === 'pipeline.status') {
         setPipelineStatus(message.payload);
       }
@@ -272,6 +286,15 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
     }));
   };
 
+  const sendEdgeUpdate = (payload: EdgeUpdatePayload) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
+    edgeUpdateTimestampRef.current = payload.timestamp;
+    socketRef.current.send(JSON.stringify({
+      type: 'edge.update',
+      payload,
+    }));
+  };
+
   const sendPipelineExecute = () => {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     socketRef.current.send(JSON.stringify({
@@ -300,6 +323,7 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
     requestLock,
     releaseLock,
     sendNodeUpdate,
+    sendEdgeUpdate,
     sendPipelineExecute,
     sendPipelineStatus,
   };
