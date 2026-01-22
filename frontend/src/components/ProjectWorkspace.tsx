@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
   GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User
@@ -26,7 +27,6 @@ interface PipelineInfo {
 
 interface ProjectWorkspaceProps {
   projectId: string;
-  onBack: () => void;
 }
 
 interface SavedGraphInfo {
@@ -38,7 +38,7 @@ interface SavedGraphInfo {
 
 type Tab = 'overview' | 'pipeline' | 'visualizations';
 
-export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, onBack }) => {
+export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId }) => {
   const {
     flowNodes,
     flowEdges,
@@ -90,6 +90,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
   const [shareError, setShareError] = useState('');
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Permission helpers
   const canEdit = project?.isOwner !== false || project?.permission === 'edit' || project?.permission === 'admin';
@@ -641,7 +644,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
             <div className="h-6 w-px bg-gray-300"></div>
             
             <button
-              onClick={onBack}
+              onClick={() => navigate(`/projects${location.search}`)}
               className="flex items-center space-x-2 px-3 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-all"
             >
               <ArrowLeft className="h-4 w-4" />

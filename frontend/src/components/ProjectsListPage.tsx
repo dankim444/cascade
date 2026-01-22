@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, FolderOpen, Trash2, Edit2, Database, GitBranch, BarChart3, LogOut, User, Clock, ChevronRight, Share2, Users, X } from 'lucide-react';
 import { projectAPI } from '../services/projectAPI';
 import { useAuthStore } from '../store/useAuthStore';
 import type { Project, ProjectShare } from '../types';
 
-interface ProjectsListPageProps {
-  onSelectProject: (projectId: string) => void;
-}
-
-export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProject }) => {
+export const ProjectsListPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -28,6 +25,8 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
   const [loadingShares, setLoadingShares] = useState(false);
   
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     loadProjects();
@@ -294,7 +293,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
               >
                 <div 
                   className="p-6 cursor-pointer"
-                  onClick={() => onSelectProject(project.id)}
+                  onClick={() => navigate(`/projects/${project.id}${location.search}`)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
