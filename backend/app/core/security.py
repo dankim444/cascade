@@ -51,11 +51,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-) -> User:
-    """Get the current authenticated user from JWT token"""
+def _get_user_from_token(token: str, db: Session) -> User:
+    """Get the current authenticated user from JWT token (internal helper)."""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -80,4 +77,17 @@ def get_current_user(
         )
     
     return user
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    """Get the current authenticated user from JWT token."""
+    return _get_user_from_token(token, db)
+
+
+def get_user_from_token(token: str, db: Session) -> User:
+    """Get the authenticated user from a raw token (e.g., WebSocket)."""
+    return _get_user_from_token(token, db)
 

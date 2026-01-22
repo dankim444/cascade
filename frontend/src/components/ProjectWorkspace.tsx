@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
-  GitBranch, BarChart3, Layers, Settings, ChevronDown, Edit2, FileText, Share2, Users, User
+  GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User
 } from 'lucide-react';
 import { PipelineCanvasWithProvider } from './PipelineCanvas';
 import { NodeConfigPanel } from './NodeConfigPanel';
@@ -11,6 +12,7 @@ import { NodeDataPreview } from './NodeDataPreview';
 import { MLResultsDisplay } from './MLResultsDisplay';
 import { GraphsLayout } from './GraphsLayout';
 import { useWorkflowStore } from '../store/useWorkflowStore';
+import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
@@ -26,7 +28,6 @@ interface PipelineInfo {
 
 interface ProjectWorkspaceProps {
   projectId: string;
-  onBack: () => void;
 }
 
 interface SavedGraphInfo {
@@ -38,7 +39,7 @@ interface SavedGraphInfo {
 
 type Tab = 'overview' | 'pipeline' | 'visualizations';
 
-export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, onBack }) => {
+export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId }) => {
   const {
     flowNodes,
     flowEdges,
@@ -88,8 +89,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
   const [sharePermission, setSharePermission] = useState<'view' | 'edit' | 'admin'>('view');
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
+
+  const { otherUsers, cursors } = useProjectPresence(projectId);
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Permission helpers
   const canEdit = project?.isOwner !== false || project?.permission === 'edit' || project?.permission === 'admin';
@@ -234,6 +241,29 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
     } catch (error) {
       console.error('Failed to remove share:', error);
       alert('Failed to remove share. Please try again.');
+    }
+  };
+
+  const handleUpdateSharePermission = async (
+    shareId: string,
+    email: string,
+    permission: 'view' | 'edit' | 'admin'
+  ) => {
+    setShareError('');
+    setUpdatingShareId(shareId);
+    try {
+      await projectAPI.updateShare(projectId, shareId, {
+        email,
+        permission,
+      });
+      setProjectShares(projectShares.map((share) => (
+        share.id === shareId ? { ...share, permission } : share
+      )));
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Failed to update permission';
+      setShareError(message);
+    } finally {
+      setUpdatingShareId(null);
     }
   };
 
@@ -641,7 +671,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
             <div className="h-6 w-px bg-gray-300"></div>
             
             <button
-              onClick={onBack}
+              onClick={() => navigate(`/projects${location.search}`)}
               className="flex items-center space-x-2 px-3 py-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg transition-all"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -700,8 +730,22 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
             </button>
           </div>
 
-          {/* Right: Share button and project info */}
+          {/* Right: Presence and share */}
           <div className="flex items-center space-x-3">
+            {otherUsers.length > 0 && (
+              <div className="flex items-center -space-x-2">
+                {otherUsers.map((presenceUser) => (
+                  <div
+                    key={presenceUser.userId}
+                    className="w-8 h-8 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-semibold text-white"
+                    style={{ backgroundColor: presenceUser.color }}
+                    title={presenceUser.fullName}
+                  >
+                    {presenceUser.initial}
+                  </div>
+                ))}
+              </div>
+            )}
             {/* Shared indicator */}
             {project?.isOwner === false && (
               <div className="flex items-center space-x-1.5 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm">
@@ -726,6 +770,31 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
           </div>
         </div>
       </header>
+
+      {Object.keys(cursors).length > 0 && (
+        <div className="pointer-events-none fixed inset-0 z-30">
+          {Object.values(cursors).map((cursor) => (
+            <div
+              key={cursor.userId}
+              className="absolute left-0 top-0"
+              style={{ transform: `translate(${cursor.x}px, ${cursor.y}px)` }}
+            >
+              <div className="flex items-center space-x-2">
+                <div
+                  className="w-2.5 h-2.5 rounded-full shadow"
+                  style={{ backgroundColor: cursor.color }}
+                />
+                <div
+                  className="px-2 py-0.5 rounded-md text-xs text-white shadow"
+                  style={{ backgroundColor: cursor.color }}
+                >
+                  {cursor.fullName}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Secondary Toolbar - Pipeline specific */}
       {activeTab === 'pipeline' && (
@@ -1612,18 +1681,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId, o
                             <p className="text-sm font-medium text-gray-900">
                               {share.sharedWithEmail}
                             </p>
-                            <p className="text-xs text-gray-500 capitalize">
-                              {share.permission} access
-                            </p>
+                            <div className="mt-1">
+                              <select
+                                value={share.permission}
+                                onChange={(e) => handleUpdateSharePermission(
+                                  share.id,
+                                  share.sharedWithEmail,
+                                  e.target.value as 'view' | 'edit' | 'admin'
+                                )}
+                                disabled={!canManageShares || updatingShareId === share.id}
+                                className="text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-60"
+                              >
+                                <option value="view">View only</option>
+                                <option value="edit">Can edit</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleRemoveShare(share.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove access"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {canManageShares && (
+                          <button
+                            onClick={() => handleRemoveShare(share.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove access"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

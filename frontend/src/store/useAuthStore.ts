@@ -159,12 +159,13 @@ export const useAuthStore = create<AuthState>()((set, get) => {
             throw new Error('Not authenticated');
           }
 
-          const user = await response.json();
-          const newState = {
-            user,
-            isAuthenticated: true,
-            isLoading: false,
-          };
+        const user = await response.json();
+        const newState = {
+          user,
+          token,
+          isAuthenticated: true,
+          isLoading: false,
+        };
           set(newState);
           saveToStorage(newState);
         } catch (error) {

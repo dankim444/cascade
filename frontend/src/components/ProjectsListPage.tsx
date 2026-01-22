@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, FolderOpen, Trash2, Edit2, Database, GitBranch, BarChart3, LogOut, User, Clock, ChevronRight, Share2, Users, X } from 'lucide-react';
 import { projectAPI } from '../services/projectAPI';
 import { useAuthStore } from '../store/useAuthStore';
 import type { Project, ProjectShare } from '../types';
 
-interface ProjectsListPageProps {
-  onSelectProject: (projectId: string) => void;
-}
-
-export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProject }) => {
+export const ProjectsListPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -24,10 +21,14 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
   const [sharePermission, setSharePermission] = useState<'view' | 'edit' | 'admin'>('view');
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
   
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const canManageShares = sharingProject?.isOwner !== false || sharingProject?.permission === 'admin';
 
   useEffect(() => {
     loadProjects();
@@ -168,6 +169,30 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
     }
   };
 
+  const handleUpdateSharePermission = async (
+    shareId: string,
+    email: string,
+    permission: 'view' | 'edit' | 'admin'
+  ) => {
+    if (!sharingProject) return;
+    setShareError('');
+    setUpdatingShareId(shareId);
+    try {
+      await projectAPI.updateShare(sharingProject.id, shareId, {
+        email,
+        permission,
+      });
+      setProjectShares(projectShares.map((share) => (
+        share.id === shareId ? { ...share, permission } : share
+      )));
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Failed to update permission';
+      setShareError(message);
+    } finally {
+      setUpdatingShareId(null);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     if (!dateString) return 'Unknown';
     
@@ -294,7 +319,7 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
               >
                 <div 
                   className="p-6 cursor-pointer"
-                  onClick={() => onSelectProject(project.id)}
+                  onClick={() => navigate(`/projects/${project.id}${location.search}`)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
@@ -609,18 +634,33 @@ export const ProjectsListPage: React.FC<ProjectsListPageProps> = ({ onSelectProj
                             <p className="text-sm font-medium text-gray-900">
                               {share.sharedWithEmail}
                             </p>
-                            <p className="text-xs text-gray-500 capitalize">
-                              {share.permission} access
-                            </p>
+                            <div className="mt-1">
+                              <select
+                                value={share.permission}
+                                onChange={(e) => handleUpdateSharePermission(
+                                  share.id,
+                                  share.sharedWithEmail,
+                                  e.target.value as 'view' | 'edit' | 'admin'
+                                )}
+                                disabled={!canManageShares || updatingShareId === share.id}
+                                className="text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-60"
+                              >
+                                <option value="view">View only</option>
+                                <option value="edit">Can edit</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleRemoveShare(share.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove access"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
+                        {canManageShares && (
+                          <button
+                            onClick={() => handleRemoveShare(share.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove access"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
