@@ -44,9 +44,9 @@ export interface EditorHelp {
 /** Full help for the node editor: description + field meanings */
 export const TRANSFORM_EDITOR_HELP: Record<string, EditorHelp> = {
   select: {
-    description: 'Keep only the columns you need. Uncheck columns to drop them; leave all unchecked to keep every column.',
+    description: 'Keep only selected columns.',
     fields: [
-      { name: 'Select columns', description: 'Check the columns you want to keep in the table. Leave all unchecked to keep all columns.' },
+      { name: 'Select columns', description: 'Check the columns you want to keep in the table.' },
     ],
   },
   filter: {
@@ -67,7 +67,7 @@ export const TRANSFORM_EDITOR_HELP: Record<string, EditorHelp> = {
   join: {
     description: 'Merge two tables by matching values in a column (e.g. combine Orders with Customers on customer_id).',
     fields: [
-      { name: 'Join type', description: 'Inner = only rows that match in both tables. Left = all from first table plus matches from second. Right and Outer include more rows from one or both sides.' },
+      { name: 'Join type', description: 'Inner = only rows that match in both tables. Left = all rows from first table plus matches from second. Right = all from second table plus matches from second. Outer = keep all rows from both tables while matching.' },
       { name: 'Right table', description: 'The second table to merge. You can also connect another dataset using the node\'s right input handle.' },
       { name: 'Left column / Right column', description: 'The column in each table used to match rows (e.g. customer_id in both).' },
     ],
@@ -80,7 +80,7 @@ export const TRANSFORM_EDITOR_HELP: Record<string, EditorHelp> = {
     ],
   },
   rename: {
-    description: 'Give columns new, clearer names without changing the data.',
+    description: 'Give columns new names without changing the data.',
     fields: [
       { name: 'Column renames', description: 'Add a row for each column you want to rename. The left side shows the current name; type the new name on the right.' },
     ],
