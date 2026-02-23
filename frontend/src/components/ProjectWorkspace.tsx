@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
-  GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User
+  GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User, Info
 } from 'lucide-react';
 import { PipelineCanvasWithProvider } from './PipelineCanvas';
 import { NodeConfigPanel } from './NodeConfigPanel';
@@ -18,6 +18,12 @@ import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
 import { MarkerType } from 'reactflow';
 import type { ProjectDetails, ProjectShare } from '../types';
+import {
+  TRANSFORM_LABELS,
+  TRANSFORM_BRIEF,
+  ML_BRIEF,
+  getOperationDisplayName,
+} from '../constants/nodeHelp';
 
 interface PipelineInfo {
   id: string;
@@ -64,6 +70,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [isLoading, setIsLoading] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [addNodeInfoKey, setAddNodeInfoKey] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [executionResult, setExecutionResult] = useState<any>(null);
   const [selectedFlowNode, setSelectedFlowNode] = useState<FlowNode | null>(null);
@@ -350,16 +357,6 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   };
 
   const handleAddTransformNode = (operation: string) => {
-    const operationLabels: Record<string, string> = {
-      select: 'Select Columns',
-      filter: 'Filter Rows',
-      groupby: 'Group By',
-      join: 'Join Tables',
-      sort: 'Sort Data',
-      rename: 'Rename Columns',
-      calculate: 'Calculate Column',
-    };
-
     const dataNode = flowNodes.find(n => n.type === 'dataNode');
     const dataKey = dataNode?.data.dataKey || datasets[0]?.dataKey;
 
@@ -368,7 +365,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       type: 'transformNode',
       position: { x: 300, y: 50 + flowNodes.length * 120 },
       data: {
-        label: operationLabels[operation] || operation,
+        label: TRANSFORM_LABELS[operation] || operation,
         operation,
         config: {},
         status: 'pending',
@@ -1223,7 +1220,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               {canEdit && (
                 <div className="relative">
                   <button
-                    onClick={() => setShowAddMenu(!showAddMenu)}
+                    onClick={() => {
+                      setShowAddMenu((prev) => {
+                        if (!prev) setAddNodeInfoKey(null);
+                        return !prev;
+                      });
+                    }}
                     className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
                   >
                     <Plus className="h-4 w-4" />
@@ -1231,60 +1233,154 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                   </button>
 
                   {showAddMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 z-50">
-                      <div className="p-2">
-                        <div className="text-xs font-semibold text-gray-400 uppercase px-3 py-2">
+                    <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
+                      <div className="p-3 max-h-[70vh] overflow-y-auto">
+                        <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">
                           Data Sources
                         </div>
-                        {datasets.map((ds) => (
-                          <button
-                            key={ds.id}
-                            onClick={() => handleAddDataNode(ds)}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-blue-50 text-sm group"
-                          >
-                            <div className="font-medium text-gray-900 group-hover:text-blue-600">{ds.name}</div>
-                            <div className="text-xs text-gray-500">
-                              {ds.rowCount} rows • {ds.columns.length} cols
-                            </div>
-                          </button>
-                        ))}
+                        <div className="space-y-0.5">
+                          {datasets.map((ds) => (
+                            <button
+                              key={ds.id}
+                              onClick={() => handleAddDataNode(ds)}
+                              className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-gray-50 text-sm text-gray-900 transition-colors"
+                            >
+                              <div className="font-medium">{ds.name}</div>
+                              <div className="text-xs text-gray-500">
+                                {ds.rowCount} rows · {ds.columns.length} cols
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                         {datasets.length === 0 && (
-                          <div className="px-3 py-2 text-sm text-gray-400">
+                          <div className="px-3 py-2.5 text-sm text-gray-500">
                             Upload a dataset first
                           </div>
                         )}
 
-                        <div className="border-t border-gray-100 my-2" />
+                        <div className="border-t border-gray-100 my-3" />
 
-                        <div className="text-xs font-semibold text-gray-400 uppercase px-3 py-2">
+                        <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">
                           Transformations
                         </div>
-                        {['select', 'filter', 'groupby', 'join', 'sort', 'rename', 'calculate'].map((op) => (
-                          <button
-                            key={op}
-                            onClick={() => handleAddTransformNode(op)}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-indigo-50 text-sm text-gray-700 hover:text-indigo-600 capitalize"
-                            disabled={datasets.length === 0}
-                          >
-                            {op.replace('_', ' ')}
-                          </button>
-                        ))}
-                        
-                        <div className="border-t border-gray-100 my-2" />
-                        
-                        <div className="text-xs font-semibold text-gray-400 uppercase px-3 py-2">
+                        <div className="space-y-0.5">
+                          {(['select', 'filter', 'groupby', 'join', 'sort', 'rename', 'calculate'] as const).map((op) => (
+                            <div
+                              key={op}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => datasets.length > 0 && handleAddTransformNode(op)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  if (datasets.length > 0) handleAddTransformNode(op);
+                                }
+                              }}
+                              className={`flex items-center w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition-colors cursor-pointer hover:bg-gray-50 ${datasets.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <span className="flex-1 min-w-0">{TRANSFORM_LABELS[op]}</span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                title="What does this do?"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setAddNodeInfoKey((k) => (k === op ? null : op));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setAddNodeInfoKey((k) => (k === op ? null : op));
+                                  }
+                                }}
+                                className="shrink-0 ml-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+                              >
+                                <Info className="h-4 w-4" />
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-gray-100 my-3" />
+
+                        <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-2 mb-1.5">
                           Machine Learning
                         </div>
-                        {['ml_regression', 'ml_classification', 'ml_clustering'].map((op) => (
+                        <div className="space-y-0.5">
+                          {(['ml_regression', 'ml_classification', 'ml_clustering'] as const).map((op) => (
+                            <div
+                              key={op}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => datasets.length > 0 && handleAddMLNode(op)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  e.preventDefault();
+                                  if (datasets.length > 0) handleAddMLNode(op);
+                                }
+                              }}
+                              className={`flex items-center w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-gray-800 transition-colors cursor-pointer hover:bg-gray-50 capitalize ${datasets.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              <span className="flex-1 min-w-0">{op.replace('ml_', '').replace('_', ' ')}</span>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                title="What does this do?"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  setAddNodeInfoKey((k) => (k === op ? null : op));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setAddNodeInfoKey((k) => (k === op ? null : op));
+                                  }
+                                }}
+                                className="shrink-0 ml-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+                              >
+                                <Info className="h-4 w-4" />
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Brief info modal (Add Node dropdown) */}
+                  {addNodeInfoKey && (TRANSFORM_BRIEF[addNodeInfoKey] ?? ML_BRIEF[addNodeInfoKey]) && (
+                    <div
+                      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+                      onClick={() => setAddNodeInfoKey(null)}
+                      role="dialog"
+                      aria-modal="true"
+                    >
+                      <div
+                        className="bg-white rounded-xl shadow-xl p-4 max-w-sm w-full"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                              {getOperationDisplayName(addNodeInfoKey)}
+                            </h3>
+                            <p className="text-xs text-gray-600">
+                              {TRANSFORM_BRIEF[addNodeInfoKey] ?? ML_BRIEF[addNodeInfoKey]}
+                            </p>
+                          </div>
                           <button
-                            key={op}
-                            onClick={() => handleAddMLNode(op)}
-                            className="w-full text-left px-3 py-2 rounded-lg hover:bg-purple-50 text-sm text-gray-700 hover:text-purple-600 capitalize"
-                            disabled={datasets.length === 0}
+                            type="button"
+                            onClick={() => setAddNodeInfoKey(null)}
+                            className="p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 shrink-0"
+                            aria-label="Close"
                           >
-                            {op.replace('ml_', '').replace('_', ' ')}
+                            <X className="h-4 w-4" />
                           </button>
-                        ))}
+                        </div>
                       </div>
                     </div>
                   )}

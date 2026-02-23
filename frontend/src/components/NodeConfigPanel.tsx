@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Plus } from 'lucide-react';
+import { X, Settings, Plus, Info } from 'lucide-react';
 import type { Node as FlowNode } from 'reactflow';
 import type { Dataset } from '../types';
 import { useWorkflowStore } from '../store/useWorkflowStore';
+import { getOperationDisplayName, getEditorHelp } from '../constants/nodeHelp';
 
 interface NodeConfigPanelProps {
   selectedNode: FlowNode | null;
@@ -25,12 +26,14 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
 }) => {
   const [config, setConfig] = useState<any>({});
   const [label, setLabel] = useState('');
+  const [showEditorHelp, setShowEditorHelp] = useState(false);
   const { flowEdges, getNodeResult } = useWorkflowStore();
 
   useEffect(() => {
     if (selectedNode) {
       setConfig(selectedNode.data.config || {});
       setLabel(selectedNode.data.label || '');
+      setShowEditorHelp(false);
     }
   }, [selectedNode]);
 
@@ -136,10 +139,21 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
         {/* Transform Node Configuration */}
         {!isDataNode && operation && (
           <div className="space-y-4">
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-sm font-medium text-gray-700">
-                Operation: <span className="text-blue-600 capitalize">{operation}</span>
-              </div>
+            {/* Operation type at top with info button */}
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-base font-semibold text-gray-900">
+                {getOperationDisplayName(operation)}
+              </h4>
+              {getEditorHelp(operation) && (
+                <button
+                  type="button"
+                  onClick={() => setShowEditorHelp((v) => !v)}
+                  className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                  title={showEditorHelp ? 'Hide help' : 'How to use this step'}
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
             {operation === 'select' && (
@@ -224,6 +238,46 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
             )}
           </div>
         )}
+
+        {/* Editor help modal */}
+        {showEditorHelp && operation && (() => {
+          const help = getEditorHelp(operation);
+          if (!help) return null;
+          return (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50"
+              onClick={() => setShowEditorHelp(false)}
+              role="dialog"
+              aria-modal="true"
+            >
+              <div
+                className="bg-white rounded-xl shadow-xl p-4 max-w-md w-full max-h-[85vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 className="text-base font-semibold text-gray-900 mb-2">
+                  {getOperationDisplayName(operation)}
+                </h3>
+                <p className="text-sm text-gray-700 mb-3">{help.description}</p>
+                <div className="space-y-1.5 mb-4">
+                  <div className="font-medium text-gray-800 text-sm">In this editor:</div>
+                  {help.fields.map((f) => (
+                    <div key={f.name} className="text-sm text-gray-700">
+                      <span className="font-medium text-gray-800">{f.name}:</span>{' '}
+                      {f.description}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditorHelp(false)}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Save Button */}
         <div className="pt-4 border-t border-gray-200">

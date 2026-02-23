@@ -316,26 +316,13 @@ async def delete_project(
         raise HTTPException(status_code=404, detail="Project not found")
     
     try:
-        # First, clear output_dataset_id from all pipelines in this project
-        # This prevents foreign key constraint violations when datasets are deleted
-        pipelines = db.query(Pipeline).filter(Pipeline.project_id == project_id).all()
-        for pipeline in pipelines:
-            pipeline.output_dataset_id = None
-        
-        # Delete all project shares (explicitly, though CASCADE should handle it)
-        db.query(ProjectShare).filter(ProjectShare.project_id == project_id).delete()
-        
         # Delete all datasets' S3 files
         datasets = db.query(Dataset).filter(Dataset.project_id == project_id).all()
         for dataset in datasets:
-            try:
-                if dataset.s3_csv_path:
-                    s3_service.delete_file(dataset.s3_csv_path)
-                if dataset.s3_db_path:
-                    s3_service.delete_file(dataset.s3_db_path)
-            except Exception as s3_error:
-                # Log S3 deletion errors but don't fail the entire operation
-                print(f"Warning: Failed to delete S3 file: {str(s3_error)}")
+            if dataset.s3_csv_path:
+                s3_service.delete_file(dataset.s3_csv_path)
+            if dataset.s3_db_path:
+                s3_service.delete_file(dataset.s3_db_path)
         
         # Delete project (cascades to datasets, pipelines, graphs)
         db.delete(project)
@@ -344,8 +331,6 @@ async def delete_project(
         return {"message": "Project deleted successfully", "id": project_id}
     except Exception as e:
         db.rollback()
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Error deleting project: {str(e)}"

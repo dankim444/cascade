@@ -7,7 +7,6 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.project_access import check_project_access, user_can_edit_project
 from app.models.saved_graph import SavedGraph
 from app.models.user import User
 from app.core.security import get_current_user
@@ -36,11 +35,6 @@ async def save_graph(
     db: Session = Depends(get_db)
 ):
     """Save a graph configuration for the current user"""
-    # If project_id is specified, check if user has edit access
-    if request.project_id:
-        if not user_can_edit_project(request.project_id, current_user.id, db):
-            raise HTTPException(status_code=403, detail="You don't have permission to save graphs in this project")
-    
     try:
         saved_graph = SavedGraph(
             user_id=current_user.id,
@@ -59,8 +53,6 @@ async def save_graph(
             "message": "Graph saved successfully"
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         db.rollback()
         print(f"Error saving graph: {str(e)}")
@@ -76,21 +68,12 @@ async def get_saved_graphs(
 ):
     """Get all saved graphs for the current user, optionally filtered by project"""
     try:
+        query = db.query(SavedGraph).filter(SavedGraph.user_id == current_user.id)
+        
         if project_id:
-            # Check if user has access to this project
-            project, is_owner, permission = check_project_access(project_id, current_user.id, db)
-            if not project:
-                raise HTTPException(status_code=403, detail="You don't have access to this project")
-            
-            # Get all graphs for this project (regardless of who created them)
-            graphs = db.query(SavedGraph).filter(
-                SavedGraph.project_id == project_id
-            ).order_by(SavedGraph.created_at.desc()).all()
-        else:
-            # Get only user's own graphs when no project specified
-            graphs = db.query(SavedGraph).filter(
-                SavedGraph.user_id == current_user.id
-            ).order_by(SavedGraph.created_at.desc()).all()
+            query = query.filter(SavedGraph.project_id == project_id)
+        
+        graphs = query.order_by(SavedGraph.created_at.desc()).all()
         
         return [
             SavedGraphResponse(
@@ -105,8 +88,6 @@ async def get_saved_graphs(
             for graph in graphs
         ]
         
-    except HTTPException:
-        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching saved graphs: {str(e)}")
 
@@ -118,18 +99,13 @@ async def delete_saved_graph(
 ):
     """Delete a saved graph"""
     try:
-        graph = db.query(SavedGraph).filter(SavedGraph.id == graph_id).first()
+        graph = db.query(SavedGraph).filter(
+            SavedGraph.id == graph_id,
+            SavedGraph.user_id == current_user.id  # Security: only delete own graphs
+        ).first()
         
         if not graph:
             raise HTTPException(status_code=404, detail="Saved graph not found")
-        
-        # Check access: user owns the graph OR has edit access to its project
-        can_delete = graph.user_id == current_user.id
-        if not can_delete and graph.project_id:
-            can_delete = user_can_edit_project(graph.project_id, current_user.id, db)
-        
-        if not can_delete:
-            raise HTTPException(status_code=403, detail="You don't have permission to delete this graph")
         
         db.delete(graph)
         db.commit()
@@ -151,18 +127,13 @@ async def update_saved_graph(
 ):
     """Update a saved graph"""
     try:
-        graph = db.query(SavedGraph).filter(SavedGraph.id == graph_id).first()
+        graph = db.query(SavedGraph).filter(
+            SavedGraph.id == graph_id,
+            SavedGraph.user_id == current_user.id  # Security: only update own graphs
+        ).first()
         
         if not graph:
             raise HTTPException(status_code=404, detail="Saved graph not found")
-        
-        # Check access: user owns the graph OR has edit access to its project
-        can_edit = graph.user_id == current_user.id
-        if not can_edit and graph.project_id:
-            can_edit = user_can_edit_project(graph.project_id, current_user.id, db)
-        
-        if not can_edit:
-            raise HTTPException(status_code=403, detail="You don't have permission to update this graph")
         
         graph.name = request.name
         graph.config = request.config

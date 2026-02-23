@@ -13,7 +13,6 @@ class Dataset(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
-    pipeline_id = Column(String, ForeignKey("pipelines.id"), nullable=True, index=True)  # Link to pipeline that created this dataset
     name = Column(String, nullable=False)
     data_key = Column(String, unique=True, nullable=False, index=True)
     

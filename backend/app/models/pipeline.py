@@ -19,9 +19,6 @@ class Pipeline(Base):
     # Pipeline definition (nodes, edges, etc.)
     definition = Column(JSON, nullable=False)
     
-    # Output dataset (the transformed result saved as a dataset)
-    output_dataset_id = Column(String, ForeignKey("datasets.id"), nullable=True)
-    
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -29,5 +26,4 @@ class Pipeline(Base):
     # Relationships
     user = relationship("User", backref="pipelines")
     project = relationship("Project", back_populates="pipelines")
-    output_dataset = relationship("Dataset", foreign_keys=[output_dataset_id], uselist=False)
 
