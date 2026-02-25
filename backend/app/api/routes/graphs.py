@@ -17,6 +17,7 @@ from pathlib import Path
 import sqlite3
 
 from app.core.database import get_db
+from app.core.project_access import check_project_access
 from app.models.dataset import Dataset
 from app.models.user import User
 from app.core.security import get_current_user
@@ -74,11 +75,30 @@ def load_dataset(data_key: str, user_id: str = None, db: Session = None) -> pd.D
     # Try S3 approach first if user_id and db are provided
     if user_id and db:
         try:
-            # Find dataset in database by dataKey and user
+            # Prefer user's own dataset first
             dataset = db.query(Dataset).filter(
                 Dataset.data_key == data_key,
                 Dataset.user_id == user_id
             ).first()
+
+            # If not owned by user, allow shared-project access
+            if not dataset:
+                candidate = db.query(Dataset).filter(Dataset.data_key == data_key).first()
+                if candidate:
+                    if candidate.project_id:
+                        project, _, _ = check_project_access(candidate.project_id, user_id, db)
+                        if project:
+                            dataset = candidate
+                        else:
+                            raise HTTPException(
+                                status_code=403,
+                                detail="You don't have access to the dataset for this visualization."
+                            )
+                    else:
+                        raise HTTPException(
+                            status_code=403,
+                            detail="You don't have access to this dataset."
+                        )
             
             if dataset:
                 print(f"Found dataset in DB: {dataset.name} (ID: {dataset.id})")
@@ -112,7 +132,9 @@ def load_dataset(data_key: str, user_id: str = None, db: Session = None) -> pd.D
                 else:
                     print(f"Failed to download from S3, falling back to local files")
             else:
-                print(f"Dataset {data_key} not found in database, falling back to local files")
+                raise HTTPException(status_code=404, detail=f"Dataset {data_key} not found")
+        except HTTPException:
+            raise
         except Exception as e:
             print(f"S3 approach failed: {str(e)}, falling back to local files")
     
@@ -368,6 +390,8 @@ async def get_columns(
             "numeric_columns": data_summary.numeric_columns,
             "categorical_columns": data_summary.categorical_columns
         }
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error getting columns for {data_key}: {str(e)}")
         import traceback
@@ -428,7 +452,8 @@ async def generate_graph(
             config=request.config,
             data_summary=data_summary
         )
-    
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error generating graph: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating graph: {str(e)}")

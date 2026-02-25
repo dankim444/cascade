@@ -40,6 +40,18 @@ type EdgeUpdatePayload = {
   timestamp: number;
 };
 
+type VisualizationChangedPayload = {
+  projectId: string;
+  action: 'created' | 'updated' | 'deleted';
+  graphId?: string;
+};
+
+type ProjectPermissionChangedPayload = {
+  projectId: string;
+  changedUserId?: string;
+  permission?: 'view' | 'edit' | 'admin';
+};
+
 type PresenceMessage =
   | { type: 'presence.snapshot'; payload: { users: PresenceUser[]; locks?: Record<string, LockHolder>; pipelineStatus?: PipelineStatus } }
   | { type: 'presence.join'; payload: { user: PresenceUser } }
@@ -50,7 +62,9 @@ type PresenceMessage =
   | { type: 'lock.released'; payload: { nodeId: string; releasedBy: string } }
   | { type: 'node.update'; payload: NodeUpdatePayload }
   | { type: 'edge.update'; payload: EdgeUpdatePayload }
-  | { type: 'pipeline.status'; payload: PipelineStatus };
+  | { type: 'pipeline.status'; payload: PipelineStatus }
+  | { type: 'visualization.changed'; payload: VisualizationChangedPayload }
+  | { type: 'project.permission_changed'; payload: ProjectPermissionChangedPayload };
 
 const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
@@ -69,6 +83,8 @@ type UseProjectPresenceOptions = {
   activeTab?: string;
   onNodeUpdate?: (payload: NodeUpdatePayload) => void;
   onEdgeUpdate?: (payload: EdgeUpdatePayload) => void;
+  onVisualizationChanged?: (payload: VisualizationChangedPayload) => void;
+  onProjectPermissionChanged?: (payload: ProjectPermissionChangedPayload) => void;
 };
 
 export const useProjectPresence = (projectId: string | null, options?: UseProjectPresenceOptions) => {
@@ -205,6 +221,10 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
         }
       } else if (message.type === 'pipeline.status') {
         setPipelineStatus(message.payload);
+      } else if (message.type === 'visualization.changed') {
+        options?.onVisualizationChanged?.(message.payload);
+      } else if (message.type === 'project.permission_changed') {
+        options?.onProjectPermissionChanged?.(message.payload);
       }
     };
 

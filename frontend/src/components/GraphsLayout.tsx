@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FullGraphConfigPanel } from './FullGraphConfigPanel';
 import { GraphViewer } from './GraphViewer';
 import { graphAPI } from '../services/graphAPI';
@@ -8,9 +8,17 @@ import type { GraphConfig, GraphResponse, SavedGraph } from '../services/graphAP
 interface GraphsLayoutProps {
   projectId?: string;
   onGraphSaved?: () => void;
+  canEdit?: boolean;
+  liveRefreshToken?: number;
 }
 
-export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSaved }) => {
+export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
+  projectId,
+  onGraphSaved,
+  canEdit: _canEdit,
+  liveRefreshToken,
+}) => {
+  const canEdit = _canEdit ?? true;
   const { datasets } = useWorkflowStore();
   const [selectedDataKey, setSelectedDataKey] = useState<string>('');
   const [showGraphConfig, setShowGraphConfig] = useState(false);
@@ -21,32 +29,43 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
   // Datasets are now available directly from the Zustand store
   // No need for useEffect to load them
 
-  // Load saved graphs from backend
-  useEffect(() => {
-    const loadSavedGraphs = async () => {
-      try {
-        const graphs = await graphAPI.getSavedGraphs(projectId);
-        setSavedGraphs(graphs);
-      } catch (error) {
-        console.error('Error loading saved graphs:', error);
-        // Fallback to localStorage for migration
-        const saved = localStorage.getItem('savedGraphs');
-        if (saved) {
-          try {
-            const localGraphs = JSON.parse(saved);
-            setSavedGraphs(localGraphs);
-            // TODO: Migrate local graphs to backend
-          } catch (e) {
-            console.error('Error parsing local saved graphs:', e);
-          }
+  const loadSavedGraphs = useCallback(async () => {
+    try {
+      const graphs = await graphAPI.getSavedGraphs(projectId);
+      setSavedGraphs(graphs);
+    } catch (error) {
+      console.error('Error loading saved graphs:', error);
+      // Fallback to localStorage for migration
+      const saved = localStorage.getItem('savedGraphs');
+      if (saved) {
+        try {
+          const localGraphs = JSON.parse(saved);
+          setSavedGraphs(localGraphs);
+          // TODO: Migrate local graphs to backend
+        } catch (e) {
+          console.error('Error parsing local saved graphs:', e);
         }
       }
-    };
-    
-    loadSavedGraphs();
+    }
   }, [projectId]);
 
+  // Initial load
+  useEffect(() => {
+    loadSavedGraphs();
+  }, [loadSavedGraphs]);
+
+  // Refresh when parent notifies us of a collaboration update
+  useEffect(() => {
+    if (typeof liveRefreshToken === 'number') {
+      loadSavedGraphs();
+    }
+  }, [liveRefreshToken, loadSavedGraphs]);
+
   const handleDatasetSelect = (dataKey: string) => {
+    if (!canEdit) {
+      alert('You have view-only access to this project. You need edit or admin permission to create visualizations.');
+      return;
+    }
     setSelectedDataKey(dataKey);
     setShowGraphConfig(true);
     setCurrentGraph(null);
@@ -72,6 +91,10 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
   };
 
   const handleSaveGraph = async (name: string) => {
+    if (!canEdit) {
+      alert('You have view-only access to this project. You need edit or admin permission to save visualizations.');
+      return;
+    }
     if (!currentGraph || !selectedDataKey) return;
 
     try {
@@ -83,8 +106,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
       });
       
       // Refresh saved graphs list
-      const graphs = await graphAPI.getSavedGraphs(projectId);
-      setSavedGraphs(graphs);
+      await loadSavedGraphs();
       
       // Notify parent component that a graph was saved
       if (onGraphSaved) {
@@ -110,7 +132,8 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
       setCurrentGraph(response);
     } catch (error) {
       console.error('Error loading saved graph:', error);
-      alert('Failed to load saved graph. The dataset may no longer be available.');
+      const message = error instanceof Error ? error.message : 'Failed to load saved graph.';
+      alert(message);
     } finally {
       setIsGenerating(false);
     }
@@ -121,11 +144,16 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
       await graphAPI.deleteSavedGraph(graphId);
       
       // Refresh saved graphs list
-      const graphs = await graphAPI.getSavedGraphs(projectId);
-      setSavedGraphs(graphs);
+      await loadSavedGraphs();
+
+      // Notify parent component so tab badge count stays in sync
+      if (onGraphSaved) {
+        onGraphSaved();
+      }
     } catch (error) {
       console.error('Error deleting saved graph:', error);
-      alert('Failed to delete graph. Please try again.');
+      const message = error instanceof Error ? error.message : 'Failed to delete graph. Please try again.';
+      alert(message);
     }
   };
 
@@ -152,10 +180,13 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
                 <button
                   key={dataset.dataKey}
                   onClick={() => handleDatasetSelect(dataset.dataKey)}
+                  disabled={!canEdit}
                   className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
                     selectedDataKey === dataset.dataKey
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  } ${
+                    !canEdit ? 'opacity-60 cursor-not-allowed hover:border-gray-200 hover:bg-white' : ''
                   }`}
                 >
                   <div className="font-medium">
@@ -248,18 +279,20 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({ projectId, onGraphSa
                 </div>
                 
                 <div className="flex space-x-3">
-                  <button
-                    onClick={() => {
-                      const name = prompt('Enter a name for this graph:');
-                      if (name) handleSaveGraph(name);
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center space-x-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <span>Save</span>
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => {
+                        const name = prompt('Enter a name for this graph:');
+                        if (name) handleSaveGraph(name);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <span>Save</span>
+                    </button>
+                  )}
                   
                   <button
                     onClick={() => setCurrentGraph(null)}

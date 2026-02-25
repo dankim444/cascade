@@ -14,6 +14,7 @@ import { GraphsLayout } from './GraphsLayout';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
+import { graphAPI } from '../services/graphAPI';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
 import { MarkerType } from 'reactflow';
@@ -100,6 +101,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [updatingShareId, setUpdatingShareId] = useState<string | null>(null);
   const [projectShares, setProjectShares] = useState<ProjectShare[]>([]);
   const [loadingShares, setLoadingShares] = useState(false);
+  const [visualizationChangeTick, setVisualizationChangeTick] = useState(0);
+  const [permissionChangeTick, setPermissionChangeTick] = useState(0);
 
   const flowNodesRef = useRef(flowNodes);
   const flowEdgesRef = useRef(flowEdges);
@@ -159,6 +162,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     activeTab,
     onNodeUpdate: handleRemoteNodeUpdate,
     onEdgeUpdate: handleRemoteEdgeUpdate,
+    onVisualizationChanged: () => {
+      setVisualizationChangeTick((prev) => prev + 1);
+    },
+    onProjectPermissionChanged: () => {
+      setPermissionChangeTick((prev) => prev + 1);
+    },
   });
 
   const isPipelineExecuting = pipelineStatus.status === 'running';
@@ -174,6 +183,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   // Permission helpers
   const canEdit = project?.isOwner !== false || project?.permission === 'edit' || project?.permission === 'admin';
   const canManageShares = project?.isOwner !== false || project?.permission === 'admin';
+
+  const syncSavedGraphs = useCallback(async () => {
+    const graphs = await graphAPI.getSavedGraphs(projectId);
+    const graphInfos: SavedGraphInfo[] = graphs.map((g: any) => ({
+      id: g.id,
+      name: g.name,
+      dataKey: g.data_key,
+      createdAt: g.created_at,
+    }));
+    setSavedGraphs(graphInfos);
+  }, [projectId]);
 
   // Load project data
   useEffect(() => {
@@ -221,16 +241,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         }));
         setPipelines(pipelineInfos);
         
-        // Load saved graphs/visualizations from project data
-        if (projectData.graphs) {
-          const graphInfos: SavedGraphInfo[] = projectData.graphs.map((g: any) => ({
-            id: g.id,
-            name: g.name,
-            dataKey: g.dataKey,
-            createdAt: g.createdAt,
-          }));
-          setSavedGraphs(graphInfos);
-        }
+        // Load saved graphs for this project
+        await syncSavedGraphs();
         
         // Don't auto-load pipeline - user will select from overview
       } catch (error) {
@@ -241,25 +253,38 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     };
     
     loadProject();
-  }, [projectId]);
+  }, [projectId, syncSavedGraphs]);
 
   // Function to refresh saved graphs (called after saving a graph in GraphsLayout)
-  const refreshSavedGraphs = async () => {
+  const refreshSavedGraphs = useCallback(async () => {
     try {
-      const projectData = await projectAPI.getById(projectId);
-      if (projectData.graphs) {
-        const graphInfos: SavedGraphInfo[] = projectData.graphs.map((g: any) => ({
-          id: g.id,
-          name: g.name,
-          dataKey: g.dataKey,
-          createdAt: g.createdAt,
-        }));
-        setSavedGraphs(graphInfos);
-      }
+      await syncSavedGraphs();
     } catch (error) {
       console.error('Failed to refresh saved graphs:', error);
     }
-  };
+  }, [syncSavedGraphs]);
+
+  // Refresh visualization counts when collaborators add/edit/delete graphs
+  useEffect(() => {
+    if (visualizationChangeTick === 0) return;
+    refreshSavedGraphs();
+  }, [visualizationChangeTick, refreshSavedGraphs]);
+
+  // Refresh project permissions when an admin updates sharing access
+  useEffect(() => {
+    if (permissionChangeTick === 0) return;
+
+    const refreshProjectPermissions = async () => {
+      try {
+        const projectData = await projectAPI.getById(projectId);
+        setProject(projectData);
+      } catch (error) {
+        console.error('Failed to refresh project permissions:', error);
+      }
+    };
+
+    refreshProjectPermissions();
+  }, [permissionChangeTick, projectId]);
 
   // Sharing functions
   const openShareModal = async () => {
@@ -938,6 +963,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             >
               <GitBranch className="h-4 w-4" />
               <span>Pipeline</span>
+              <span
+                className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                  activeTab === 'pipeline'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}
+                aria-label={`${pipelines.length} saved pipelines`}
+              >
+                {pipelines.length}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('visualizations')}
@@ -949,6 +984,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             >
               <BarChart3 className="h-4 w-4" />
               <span>Visualizations</span>
+              <span
+                className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-semibold ${
+                  activeTab === 'visualizations'
+                    ? 'bg-white/25 text-white'
+                    : 'bg-gray-300 text-gray-700'
+                }`}
+                aria-label={`${savedGraphs.length} saved visualizations`}
+              >
+                {savedGraphs.length}
+              </span>
             </button>
           </div>
 
@@ -1744,7 +1789,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         )}
 
         {activeTab === 'visualizations' && (
-          <GraphsLayout projectId={projectId} onGraphSaved={refreshSavedGraphs} canEdit={canEdit} />
+          <GraphsLayout
+            projectId={projectId}
+            onGraphSaved={refreshSavedGraphs}
+            canEdit={canEdit}
+            liveRefreshToken={visualizationChangeTick}
+          />
         )}
       </main>
 

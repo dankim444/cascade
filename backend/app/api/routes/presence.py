@@ -178,6 +178,36 @@ class PresenceManager:
             "payload": {"status": status, **payload},
         })
 
+    async def broadcast_visualization_changed(
+        self,
+        project_id: str,
+        action: str,
+        graph_id: Optional[str] = None,
+    ) -> None:
+        await self._broadcast(project_id, {
+            "type": "visualization.changed",
+            "payload": {
+                "projectId": project_id,
+                "action": action,
+                "graphId": graph_id,
+            },
+        })
+
+    async def broadcast_permission_changed(
+        self,
+        project_id: str,
+        changed_user_id: Optional[str] = None,
+        permission: Optional[str] = None,
+    ) -> None:
+        await self._broadcast(project_id, {
+            "type": "project.permission_changed",
+            "payload": {
+                "projectId": project_id,
+                "changedUserId": changed_user_id,
+                "permission": permission,
+            },
+        })
+
 
 presence_manager = PresenceManager()
 

@@ -16,6 +16,7 @@ from app.models.project_share import ProjectShare, SharePermission
 from app.models.dataset import Dataset
 from app.models.pipeline import Pipeline
 from app.models.saved_graph import SavedGraph
+from app.api.routes.presence import presence_manager
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -248,7 +249,7 @@ async def get_project(
                 "name": p.name,
                 "description": p.description,
                 "createdAt": p.created_at.isoformat(),
-                "updatedAt": p.updated_at.isoformat()
+                "updatedAt": (p.updated_at or p.created_at).isoformat()
             }
             for p in pipelines
         ],
@@ -386,6 +387,12 @@ async def share_project(
         existing_share.permission = share_data.permission
         db.commit()
         db.refresh(existing_share)
+
+        await presence_manager.broadcast_permission_changed(
+            project_id=project_id,
+            changed_user_id=share_with_user.id,
+            permission=existing_share.permission
+        )
         
         return {
             "id": existing_share.id,
@@ -406,6 +413,12 @@ async def share_project(
     db.add(new_share)
     db.commit()
     db.refresh(new_share)
+
+    await presence_manager.broadcast_permission_changed(
+        project_id=project_id,
+        changed_user_id=share_with_user.id,
+        permission=new_share.permission
+    )
     
     return {
         "id": new_share.id,
@@ -482,6 +495,12 @@ async def update_share(
     share.permission = share_data.permission
     db.commit()
     db.refresh(share)
+
+    await presence_manager.broadcast_permission_changed(
+        project_id=project_id,
+        changed_user_id=share.shared_with_user_id,
+        permission=share.permission
+    )
     
     shared_with = db.query(User).filter(User.id == share.shared_with_user_id).first()
     
@@ -524,6 +543,12 @@ async def remove_share(
     
     db.delete(share)
     db.commit()
+
+    await presence_manager.broadcast_permission_changed(
+        project_id=project_id,
+        changed_user_id=share.shared_with_user_id,
+        permission=None
+    )
     
     return {"message": "Share removed successfully", "id": share_id}
 

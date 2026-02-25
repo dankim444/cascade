@@ -126,8 +126,15 @@ export const graphAPI = {
     });
     
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to generate graph: ${error}`);
+      let detail = 'Failed to generate graph';
+      try {
+        const errorBody = await response.json();
+        detail = errorBody?.detail || detail;
+      } catch {
+        const errorText = await response.text();
+        if (errorText) detail = errorText;
+      }
+      throw new Error(detail);
     }
     
     return response.json();
@@ -180,8 +187,15 @@ export const graphAPI = {
     });
     
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to delete graph: ${error}`);
+      let detail = 'Failed to delete graph';
+      try {
+        const errorBody = await response.json();
+        detail = errorBody?.detail || detail;
+      } catch {
+        const errorText = await response.text();
+        if (errorText) detail = errorText;
+      }
+      throw new Error(detail);
     }
     
     return response.json();
