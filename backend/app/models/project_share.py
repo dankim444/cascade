@@ -29,7 +29,7 @@ class ProjectShare(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    project = relationship("Project", backref="shares")
+    project = relationship("Project", back_populates="shares")
     shared_with_user = relationship("User", foreign_keys=[shared_with_user_id], backref="shared_projects")
     shared_by_user = relationship("User", foreign_keys=[shared_by_user_id])
     

@@ -92,7 +92,6 @@ export const ProjectsListPage: React.FC = () => {
     if (!confirm(`Are you sure you want to delete "${projectName}"?\n\nThis will permanently delete all datasets, pipelines, and visualizations within this project. This action cannot be undone.`)) {
       return;
     }
-    
     try {
       setDeletingId(projectId);
       await projectAPI.delete(projectId);

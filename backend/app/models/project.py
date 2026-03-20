@@ -25,4 +25,5 @@ class Project(Base):
     datasets = relationship("Dataset", back_populates="project", cascade="all, delete-orphan")
     pipelines = relationship("Pipeline", back_populates="project", cascade="all, delete-orphan")
     saved_graphs = relationship("SavedGraph", back_populates="project", cascade="all, delete-orphan")
+    shares = relationship("ProjectShare", back_populates="project", cascade="all, delete-orphan")
 
