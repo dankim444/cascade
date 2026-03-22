@@ -15,7 +15,8 @@ class Dataset(Base):
     project_id = Column(String, ForeignKey("projects.id"), nullable=True, index=True)
     name = Column(String, nullable=False)
     data_key = Column(String, unique=True, nullable=False, index=True)
-    
+    pipeline_id = Column(String, ForeignKey("pipelines.id"), nullable=True, index=True)
+
     # S3 storage paths
     s3_csv_path = Column(String, nullable=True)  # Original CSV in S3
     s3_db_path = Column(String, nullable=True)   # SQLite DB in S3

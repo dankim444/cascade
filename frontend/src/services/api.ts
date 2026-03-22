@@ -130,6 +130,44 @@ export const datasetAPI = {
     return response.data;
   },
 
+  createFromExecutionOutput: async (payload: {
+    outputDataKey: string;
+    projectId: string;
+    pipelineId?: string;
+    pipelineName?: string;
+    outputSchema?: unknown[];
+    rowCount?: number;
+  }): Promise<Dataset> => {
+    const response = await api.post('/api/datasets/from-execution-output', {
+      output_data_key: payload.outputDataKey,
+      project_id: payload.projectId,
+      pipeline_id: payload.pipelineId,
+      pipeline_name: payload.pipelineName,
+      output_schema: payload.outputSchema,
+      row_count: payload.rowCount,
+    });
+    return response.data;
+  },
+
+  /** Loads presigned S3 URL in a hidden iframe so the file downloads without opening a new tab. */
+  downloadCsv: async (id: string, _displayName: string): Promise<void> => {
+    const response = await api.get<{ url: string }>(`/api/datasets/${id}/download`);
+    const url = response.data?.url;
+    if (!url) {
+      throw new Error('No download URL returned');
+    }
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText =
+      'position:fixed;width:0;height:0;border:0;visibility:hidden;pointer-events:none';
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.title = 'Download';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    window.setTimeout(() => {
+      iframe.remove();
+    }, 120_000);
+  },
+
   importFromDynamoDB: async (payload: {
     tableName: string;
     region?: string;

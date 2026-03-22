@@ -2,8 +2,9 @@
 Dataset routes with authentication and S3 storage
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+import re
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Any, List, Optional
 import pandas as pd
 import sqlite3
 import io
@@ -25,6 +26,15 @@ from app.services.s3_service import s3_service
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
+class FromExecutionOutputRequest(BaseModel):
+    output_data_key: str = Field(..., min_length=1)
+    project_id: str = Field(..., min_length=1)
+    pipeline_id: Optional[str] = None
+    pipeline_name: Optional[str] = None
+    output_schema: Optional[List[Any]] = None
+    row_count: Optional[int] = None
+
+
 class DynamoDBImportRequest(BaseModel):
     table_name: str = Field(..., min_length=1)
     region: Optional[str] = None
@@ -35,6 +45,27 @@ class DynamoDBImportRequest(BaseModel):
     limit: Optional[int] = None
     dataset_name: Optional[str] = None
     project_id: Optional[str] = None
+
+def _safe_csv_attachment_filename(name: str) -> str:
+    base = re.sub(r"[^\w\-. ]+", "_", (name or "dataset").strip()) or "dataset"
+    if not base.lower().endswith(".csv"):
+        base = f"{base}.csv"
+    return base
+
+
+def _safe_db_attachment_filename(name: str) -> str:
+    base = re.sub(r"[^\w\-. ]+", "_", (name or "dataset").strip()) or "dataset"
+    if base.lower().endswith(".csv"):
+        base = base[:-4]
+    if not base.lower().endswith(".db"):
+        base = f"{base}.db"
+    return base
+
+
+def _attachment_content_disposition(filename: str) -> str:
+    safe = filename.replace('"', "")
+    return f'attachment; filename="{safe}"'
+
 
 def _map_sqlite_type(sqlite_type: str) -> str:
     """Map SQLite types to our type system"""
@@ -309,6 +340,48 @@ async def upload_dataset(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error processing file: {str(e)}")
 
+
+@router.post("/from-execution-output")
+async def create_dataset_from_execution_output(
+    body: FromExecutionOutputRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Save the full pipeline output from the on-disk executor SQLite file (not API preview rows).
+    """
+    if not user_can_edit_project(body.project_id, current_user.id, db):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to add datasets to this project",
+        )
+
+    from app.services.pipeline_output_storage import persist_execution_sqlite_as_dataset
+
+    output_dataset, err = persist_execution_sqlite_as_dataset(
+        db,
+        body.output_data_key,
+        current_user,
+        body.project_id,
+        pipeline_id=body.pipeline_id,
+        pipeline_name_hint=body.pipeline_name,
+        output_schema=body.output_schema,
+        row_count_override=body.row_count,
+    )
+    if err or not output_dataset:
+        raise HTTPException(status_code=400, detail=err or "Failed to save dataset")
+
+    return {
+        "id": output_dataset.id,
+        "name": output_dataset.name,
+        "columns": output_dataset.columns,
+        "rowCount": output_dataset.row_count,
+        "dataKey": output_dataset.data_key,
+        "projectId": output_dataset.project_id,
+        "uploadedAt": output_dataset.uploaded_at.isoformat(),
+    }
+
+
 @router.get("")
 async def get_datasets(
     project_id: str = None,
@@ -437,6 +510,51 @@ async def get_dataset_preview(
         "data": preview_data,
         "totalRows": total_rows
     }
+
+
+@router.get("/{dataset_id}/download")
+async def get_dataset_download_presigned_url(
+    dataset_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return a short-lived presigned S3 URL so the browser can download the object directly."""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    has_access = dataset.user_id == current_user.id
+    if not has_access and dataset.project_id:
+        project, _, _ = check_project_access(dataset.project_id, current_user.id, db)
+        has_access = project is not None
+
+    if not has_access:
+        raise HTTPException(status_code=403, detail="You don't have access to this dataset")
+
+    url: Optional[str] = None
+
+    if dataset.s3_csv_path and s3_service.file_exists(dataset.s3_csv_path):
+        fn = _safe_csv_attachment_filename(dataset.name)
+        url = s3_service.get_presigned_url(
+            dataset.s3_csv_path,
+            response_content_disposition=_attachment_content_disposition(fn),
+        )
+    elif dataset.s3_db_path and s3_service.file_exists(dataset.s3_db_path):
+        fn = _safe_db_attachment_filename(dataset.name)
+        url = s3_service.get_presigned_url(
+            dataset.s3_db_path,
+            response_content_disposition=_attachment_content_disposition(fn),
+        )
+
+    if not url:
+        raise HTTPException(status_code=404, detail="Dataset file not found in storage")
+
+    dataset.last_accessed = datetime.now()
+    db.commit()
+
+    return {"url": url}
+
 
 @router.delete("/{dataset_id}")
 async def delete_dataset(

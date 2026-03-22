@@ -70,13 +70,21 @@ class S3Service:
             print(f"Error deleting from S3: {e}")
             return False
     
-    def get_presigned_url(self, s3_key: str, expiration: int = 3600) -> Optional[str]:
-        """Generate a presigned URL for temporary access"""
+    def get_presigned_url(
+        self,
+        s3_key: str,
+        expiration: int = 3600,
+        response_content_disposition: Optional[str] = None,
+    ) -> Optional[str]:
+        """Generate a presigned URL for temporary GET access (optional Content-Disposition for downloads)."""
         try:
+            params: dict = {"Bucket": self.bucket_name, "Key": s3_key}
+            if response_content_disposition:
+                params["ResponseContentDisposition"] = response_content_disposition
             url = self.s3_client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': self.bucket_name, 'Key': s3_key},
-                ExpiresIn=expiration
+                "get_object",
+                Params=params,
+                ExpiresIn=expiration,
             )
             return url
         except ClientError as e:

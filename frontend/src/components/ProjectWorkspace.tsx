@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Upload, Plus, Save, Database, Trash2, X, 
+  ArrowLeft, Upload, Plus, Save, Database, Trash2, X, Download,
   GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User, Info
 } from 'lucide-react';
 import { PipelineCanvasWithProvider } from './PipelineCanvas';
@@ -80,6 +80,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [nodePreviewLoading, setNodePreviewLoading] = useState(false);
   const [showDatasetManager, setShowDatasetManager] = useState(false);
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null);
+  const [downloadingDatasetId, setDownloadingDatasetId] = useState<string | null>(null);
   const [showMLResults, setShowMLResults] = useState(false);
   const [mlResultsData, setMLResultsData] = useState<any>(null);
   const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
@@ -887,6 +888,23 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }
   };
 
+  const handleDownloadDataset = async (datasetId: string, datasetName: string) => {
+    try {
+      setDownloadingDatasetId(datasetId);
+      await datasetAPI.downloadCsv(datasetId, datasetName);
+    } catch (error: any) {
+      console.error('Failed to download dataset:', error);
+      const status = error.response?.status;
+      const msg =
+        status === 404
+          ? 'File not found in storage.'
+          : error.message || 'Unknown error';
+      alert('Failed to download dataset: ' + msg);
+    } finally {
+      setDownloadingDatasetId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1225,23 +1243,39 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                 {ds.rowCount} rows • {ds.columns.length} columns
                               </div>
                             </div>
-                            {canEdit && (
+                            <div className="flex items-center gap-0.5 ml-2 shrink-0">
                               <button
-                                onClick={() => {
-                                  if (confirm(`Delete "${ds.name}"? This cannot be undone.`)) {
-                                    handleDeleteDataset(ds.id);
-                                  }
-                                }}
-                                disabled={deletingDatasetId === ds.id}
-                                className="ml-3 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                type="button"
+                                onClick={() => handleDownloadDataset(ds.id, ds.name)}
+                                disabled={downloadingDatasetId === ds.id}
+                                title="Download from storage (opens S3)"
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                               >
-                                {deletingDatasetId === ds.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                {downloadingDatasetId === ds.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
                                 ) : (
-                                  <Trash2 className="h-4 w-4" />
+                                  <Download className="h-4 w-4" />
                                 )}
                               </button>
-                            )}
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Delete "${ds.name}"? This cannot be undone.`)) {
+                                      handleDeleteDataset(ds.id);
+                                    }
+                                  }}
+                                  disabled={deletingDatasetId === ds.id}
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  {deletingDatasetId === ds.id ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))
                       )}
@@ -1680,23 +1714,39 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                           <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100">
                             <Database className="h-5 w-5 text-blue-600" />
                           </div>
-                          {canEdit && (
+                          <div className="flex items-center gap-0.5">
                             <button
-                              onClick={() => {
-                                if (confirm(`Delete "${dataset.name}"? This cannot be undone.`)) {
-                                  handleDeleteDataset(dataset.id);
-                                }
-                              }}
-                              disabled={deletingDatasetId === dataset.id}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                              type="button"
+                              onClick={() => handleDownloadDataset(dataset.id, dataset.name)}
+                              disabled={downloadingDatasetId === dataset.id}
+                              title="Download from storage (opens S3)"
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
                             >
-                              {deletingDatasetId === dataset.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                              {downloadingDatasetId === dataset.id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
                               ) : (
-                                <Trash2 className="h-4 w-4" />
+                                <Download className="h-4 w-4" />
                               )}
                             </button>
-                          )}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`Delete "${dataset.name}"? This cannot be undone.`)) {
+                                    handleDeleteDataset(dataset.id);
+                                  }
+                                }}
+                                disabled={deletingDatasetId === dataset.id}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                              >
+                                {deletingDatasetId === dataset.id ? (
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <h3 className="font-semibold text-gray-900 mb-1">{dataset.name}</h3>
                         <p className="text-xs text-gray-500">
@@ -1828,6 +1878,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
           onClose={() => setShowResults(false)}
           projectId={projectId}
           pipelineId={currentPipelineId || undefined}
+          pipelineName={currentPipelineName}
           onDatasetSaved={async () => {
             // Refresh datasets after saving
             const projectDatasets = await datasetAPI.getAll(projectId);

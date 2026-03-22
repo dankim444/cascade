@@ -71,8 +71,6 @@ async def run_transformation(
     import tempfile
     import os
     import sqlite3
-    import pandas as pd
-    import io
     
     temp_files_to_cleanup = []  # Track temp files for cleanup
     
@@ -152,131 +150,42 @@ async def run_transformation(
         # If execution was successful, save the result as a dataset
         if result.get('status') == 'success':
             try:
-                # Get the pipeline ID (may be None if pipeline not saved yet)
+                from app.services.pipeline_output_storage import persist_execution_sqlite_as_dataset
+
                 pipeline_id = pipeline.get('id')
                 project_id = pipeline.get('projectId')
-                
-                # Find the pipeline in the database if it exists
                 saved_pipeline = None
                 if pipeline_id:
                     saved_pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
-                
-                # Save output dataset even if pipeline doesn't exist yet
+
                 if saved_pipeline or project_id:
-                    # Get the final output database path from execution results
                     execution_results = result.get('executionResults', [])
                     if execution_results:
                         final_result = execution_results[-1]
                         output_data_key = final_result.get('output_data_key')
-                        output_db_path = f"data/{output_data_key}.db"
-                        
-                        # Check if output database file exists
-                        if os.path.exists(output_db_path):
-                            # Read the output database
-                            output_conn = sqlite3.connect(output_db_path)
-                            df = pd.read_sql_query("SELECT * FROM data", output_conn)
-                            output_conn.close()
-                            
-                            # Get schema information
-                            output_schema = result.get('outputSchema', [])
-                            row_count = result.get('outputRows', len(df))
-                            
-                            # Convert to CSV
-                            csv_buffer = io.StringIO()
-                            df.to_csv(csv_buffer, index=False)
-                            csv_content = csv_buffer.getvalue().encode('utf-8')
-                            
-                            # Read SQLite database file
-                            with open(output_db_path, 'rb') as db_file:
-                                db_content = db_file.read()
-                            
-                            # Check if pipeline already has an output dataset
-                            # First check by output_dataset_id if pipeline exists
-                            output_dataset = None
-                            if saved_pipeline and saved_pipeline.output_dataset_id:
-                                output_dataset = db.query(Dataset).filter(
-                                    Dataset.id == saved_pipeline.output_dataset_id
-                                ).first()
-                            
-                            # Also check by pipeline_id (in case pipeline was saved but link wasn't set)
-                            if not output_dataset and pipeline_id:
-                                output_dataset = db.query(Dataset).filter(
-                                    Dataset.pipeline_id == pipeline_id
-                                ).first()
-                            
-                            # Prepare consistent dataset name
-                            pipeline_name = saved_pipeline.name if saved_pipeline else (pipeline.get('name') or 'Untitled Pipeline')
-                            consistent_dataset_name = f"{pipeline_name} - Output"
-                            
-                            # Prepare S3 paths
-                            user_prefix = f"users/{current_user.id}"
-                            import uuid
-                            
-                            if output_dataset:
-                                # Update existing dataset - use same data_key and paths
-                                data_key = output_dataset.data_key
-                                csv_s3_key = output_dataset.s3_csv_path
-                                db_s3_key = output_dataset.s3_db_path
-                                dataset_id = output_dataset.id
-                                
-                                # Update the name in case pipeline name changed
-                                output_dataset.name = consistent_dataset_name
-                            else:
-                                # Create new dataset
-                                dataset_id = str(uuid.uuid4())
-                                data_key = f"data_{dataset_id}"
-                                csv_s3_key = f"{user_prefix}/datasets/{data_key}/original.csv"
-                                db_s3_key = f"{user_prefix}/datasets/{data_key}/data.db"
-                            
-                            # Upload to S3 (overwrite existing files if updating)
-                            s3_service.upload_file(csv_content, csv_s3_key, "text/csv")
-                            s3_service.upload_file(db_content, db_s3_key, "application/x-sqlite3")
-                            
-                            # Update or create dataset
-                            if output_dataset:
-                                # Update existing dataset
-                                output_dataset.columns = output_schema
-                                output_dataset.row_count = row_count
-                                output_dataset.file_size = len(csv_content)
-                                output_dataset.updated_at = datetime.now()
-                                output_dataset.last_accessed = datetime.now()
-                                # Ensure pipeline_id is set
-                                if pipeline_id:
-                                    output_dataset.pipeline_id = pipeline_id
-                            else:
-                                # Create new dataset
-                                output_dataset = Dataset(
-                                    id=dataset_id,
-                                    user_id=current_user.id,
-                                    project_id=project_id,
-                                    pipeline_id=pipeline_id,
-                                    name=consistent_dataset_name,
-                                    data_key=data_key,
-                                    s3_csv_path=csv_s3_key,
-                                    s3_db_path=db_s3_key,
-                                    columns=output_schema,
-                                    row_count=row_count,
-                                    file_size=len(csv_content)
+                        if output_data_key:
+                            output_dataset, save_err = persist_execution_sqlite_as_dataset(
+                                db,
+                                output_data_key,
+                                current_user,
+                                project_id,
+                                pipeline_id=pipeline_id,
+                                pipeline_name_hint=pipeline.get('name'),
+                                output_schema=result.get('outputSchema', []),
+                                row_count_override=result.get('outputRows'),
+                            )
+                            if output_dataset and not save_err:
+                                result['outputDataset'] = {
+                                    'id': output_dataset.id,
+                                    'name': output_dataset.name,
+                                    'dataKey': output_dataset.data_key,
+                                    'rowCount': output_dataset.row_count,
+                                }
+                            elif save_err:
+                                print(
+                                    f"Warning: Failed to save pipeline output as dataset: {save_err}"
                                 )
-                                db.add(output_dataset)
-                            
-                            db.commit()
-                            db.refresh(output_dataset)
-                            
-                            # Link pipeline to output dataset if pipeline exists
-                            if saved_pipeline:
-                                saved_pipeline.output_dataset_id = output_dataset.id
-                                db.commit()
-                            
-                            # Add output dataset info to result
-                            result['outputDataset'] = {
-                                'id': output_dataset.id,
-                                'name': output_dataset.name,
-                                'dataKey': output_dataset.data_key,
-                                'rowCount': output_dataset.row_count
-                            }
             except Exception as e:
-                # Don't fail the pipeline execution if dataset saving fails
                 print(f"Warning: Failed to save pipeline output as dataset: {str(e)}")
                 import traceback
                 traceback.print_exc()

@@ -7,10 +7,18 @@ interface ResultsViewerProps {
   onClose: () => void;
   projectId?: string;
   pipelineId?: string;
+  pipelineName?: string;
   onDatasetSaved?: () => void;
 }
 
-export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, projectId, pipelineId, onDatasetSaved }) => {
+export const ResultsViewer: React.FC<ResultsViewerProps> = ({
+  result,
+  onClose,
+  projectId,
+  pipelineId,
+  pipelineName,
+  onDatasetSaved,
+}) => {
   const isSuccess = result.status === 'success';
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -22,8 +30,10 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
   const columns = outputData.length > 0 ? Object.keys(outputData[0]) : [];
   const message = result.message || '';
   
-  // Get execution summary
+  // Get execution summary (and final on-disk output key for full dataset save)
   const executionResults = result.executionResults || [];
+  const finalExecution = executionResults.length > 0 ? executionResults[executionResults.length - 1] : null;
+  const outputDataKey = finalExecution?.output_data_key as string | undefined;
   const operationsPerformed = executionResults.map((r: any) => r.operation).filter(Boolean);
   const executionTime = result.executionTime || 'N/A';
 
@@ -56,8 +66,8 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
   };
 
   const handleSaveAsDataset = async () => {
-    if (!projectId || outputData.length === 0) {
-      setSaveError('Cannot save: Missing project ID or no data');
+    if (!projectId) {
+      setSaveError('Cannot save: Missing project ID');
       return;
     }
 
@@ -65,10 +75,29 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
     setSaveError(null);
 
     try {
-      // Convert data to CSV format
+      if (outputDataKey) {
+        const dataset = await datasetAPI.createFromExecutionOutput({
+          outputDataKey,
+          projectId,
+          pipelineId,
+          pipelineName,
+          outputSchema: result.outputSchema,
+          rowCount: result.outputRows,
+        });
+        setSavedDatasetName(dataset.name);
+        onDatasetSaved?.();
+        alert(`Dataset saved successfully: ${dataset.name}`);
+        return;
+      }
+
+      if (outputData.length === 0) {
+        setSaveError('No output to save');
+        return;
+      }
+
       const headers = columns.join(',');
-      const rows = outputData.map((row: any) => 
-        columns.map(col => {
+      const rows = outputData.map((row: any) =>
+        columns.map((col) => {
           const value = row[col];
           if (value === null || value === undefined) return '';
           const str = String(value);
@@ -77,26 +106,20 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
       );
       const csv = [headers, ...rows].join('\n');
       const csvBlob = new Blob([csv], { type: 'text/csv' });
-
-      // Get schema from result
-      const schema = result.outputSchema || columns.map((col: string) => ({
-        name: col,
-        type: 'string', // Default type, could be improved
-        nullable: true
-      }));
-
-      // Create a File object from the blob
+      const schema =
+        result.outputSchema ||
+        columns.map((col: string) => ({
+          name: col,
+          type: 'string',
+          nullable: true,
+        }));
       const csvFile = new File([csvBlob], `pipeline_output_${Date.now()}.csv`, { type: 'text/csv' });
-
-      // Upload using the dataset API
       const dataset = await datasetAPI.upload(csvFile, projectId);
-      
       setSavedDatasetName(dataset.name);
-      if (onDatasetSaved) {
-        onDatasetSaved();
-      }
-      
-      alert(`Dataset saved successfully: ${dataset.name}`);
+      onDatasetSaved?.();
+      alert(
+        `Dataset saved (preview rows only — ${outputData.length} rows). Run the pipeline again and save immediately if you need the full result.`
+      );
     } catch (error: any) {
       console.error('Failed to save dataset:', error);
       setSaveError(error.message || 'Failed to save dataset');
@@ -191,7 +214,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
               </div>
               
               <div className="flex items-center space-x-2">
-                {outputData.length > 0 && projectId && !savedDatasetName && !result.outputDataset && (
+                {(outputData.length > 0 || outputDataKey) && projectId && !savedDatasetName && !result.outputDataset && (
                   <button
                     onClick={handleSaveAsDataset}
                     disabled={isSaving}
@@ -279,7 +302,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
                 {outputData.length > 100 && (
                   <div className="mt-4 text-center text-sm text-gray-500">
                     Showing first 100 rows of {rowCount.toLocaleString()} total rows.
-                    Download CSV to see all data.
+                    Save as Dataset or download the dataset from the project to get the full table.
                   </div>
                 )}
               </div>
@@ -322,7 +345,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({ result, onClose, p
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex justify-end space-x-3">
           {isSuccess && outputData.length > 0 && (
             <>
-              {projectId && !savedDatasetName && !result.outputDataset && (
+              {(outputData.length > 0 || outputDataKey) && projectId && !savedDatasetName && !result.outputDataset && (
                 <button
                   onClick={handleSaveAsDataset}
                   disabled={isSaving}
