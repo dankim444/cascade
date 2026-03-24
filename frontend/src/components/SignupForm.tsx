@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { CascadeMark } from './CascadeLogo';
 
 interface SignupFormProps {
   onSwitchToLogin: () => void;
@@ -31,10 +32,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSwitchToLogin }) => {
   return (
     <div className="w-full max-w-md mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="flex items-center justify-center mb-6">
-          <div className="bg-green-100 p-3 rounded-full">
-            <UserPlus className="h-6 w-6 text-green-600" />
-          </div>
+        <div className="flex justify-center mb-6">
+          <CascadeMark className="w-14 h-14 shadow-md" />
         </div>
         
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">

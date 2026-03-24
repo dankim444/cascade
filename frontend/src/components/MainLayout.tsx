@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PipelineLayout } from './PipelineLayout';
 import { GraphsLayout } from './GraphsLayout';
+import { CascadeMark } from './CascadeLogo';
 
 type Tab = 'pipeline' | 'visualizations';
 
@@ -12,10 +13,10 @@ export const MainLayout: React.FC = () => {
       {/* Header with Title and Tabs */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Title */}
-          <h1 className="text-2xl font-bold text-gray-900">
-            Cascade
-          </h1>
+          <div className="flex items-center gap-3">
+            <CascadeMark className="w-10 h-10 shrink-0 shadow-md" aria-hidden />
+            <h1 className="text-2xl font-bold text-gray-900">Cascade</h1>
+          </div>
           
           {/* Tab Navigation */}
           <div className="flex space-x-1">

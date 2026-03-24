@@ -4,6 +4,11 @@ import { Plus, FolderOpen, Trash2, Edit2, Database, GitBranch, BarChart3, LogOut
 import { projectAPI } from '../services/projectAPI';
 import { useAuthStore } from '../store/useAuthStore';
 import type { Project, ProjectShare } from '../types';
+import { CascadeHeaderBrand } from './CascadeLogo';
+
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
 
 export const ProjectsListPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -234,15 +239,7 @@ export const ProjectsListPage: React.FC = () => {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-base">C</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-gray-900 tracking-tight">Cascade</h1>
-                <p className="text-xs text-gray-500">Data Analytics Platform</p>
-              </div>
-            </div>
+            <CascadeHeaderBrand />
             
             <div className="flex items-center space-x-3">
               {user && (
@@ -310,14 +307,14 @@ export const ProjectsListPage: React.FC = () => {
             {projects.map((project) => (
               <div
                 key={project.id}
-                className={`group bg-white rounded-2xl border hover:shadow-lg transition-all duration-300 overflow-hidden ${
+                className={`group bg-white rounded-2xl border hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col ${
                   project.isOwner === false 
                     ? 'border-purple-200 hover:border-purple-300' 
                     : 'border-gray-200 hover:border-blue-300'
                 }`}
               >
                 <div 
-                  className="p-6 cursor-pointer"
+                  className="p-6 cursor-pointer flex flex-col flex-1 min-h-0"
                   onClick={() => navigate(`/projects/${project.id}${location.search}`)}
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -340,7 +337,7 @@ export const ProjectsListPage: React.FC = () => {
                               e.stopPropagation();
                               openShareModal(project);
                             }}
-                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-200 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                             title="Share project"
                           >
                             <Share2 className="h-4 w-4" />
@@ -350,7 +347,7 @@ export const ProjectsListPage: React.FC = () => {
                               e.stopPropagation();
                               openEditModal(project);
                             }}
-                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 text-gray-200 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                             title="Edit project"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -361,7 +358,7 @@ export const ProjectsListPage: React.FC = () => {
                               handleDeleteProject(project.id, project.name);
                             }}
                             disabled={deletingId === project.id}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                             title="Delete project"
                           >
                             {deletingId === project.id ? (
@@ -399,32 +396,34 @@ export const ProjectsListPage: React.FC = () => {
                       {project.description}
                     </p>
                   )}
-                  
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
-                    <div className="flex items-center space-x-1.5">
-                      <Database className="h-4 w-4" />
-                      <span>{project.datasetCount} datasets</span>
+
+                  <div className="mt-auto">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+                      <div className="flex items-center space-x-1.5">
+                        <Database className="h-4 w-4" />
+                        <span>{countLabel(project.datasetCount, 'dataset', 'datasets')}</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <GitBranch className="h-4 w-4" />
+                        <span>{countLabel(project.pipelineCount, 'pipeline', 'pipelines')}</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5">
+                        <BarChart3 className="h-4 w-4" />
+                        <span>{countLabel(project.graphCount, 'graph', 'graphs')}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center space-x-1.5">
-                      <GitBranch className="h-4 w-4" />
-                      <span>{project.pipelineCount} pipelines</span>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                      <div className="flex items-center space-x-1.5 text-xs text-gray-400">
+                        <Clock className="h-3.5 w-3.5" />
+                        <span>Updated {formatDate(project.updatedAt)}</span>
+                      </div>
+                      <ChevronRight className={`h-5 w-5 transition-all ${
+                        project.isOwner === false
+                          ? 'text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1'
+                          : 'text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1'
+                      }`} />
                     </div>
-                    <div className="flex items-center space-x-1.5">
-                      <BarChart3 className="h-4 w-4" />
-                      <span>{project.graphCount} graphs</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center space-x-1.5 text-xs text-gray-400">
-                      <Clock className="h-3.5 w-3.5" />
-                      <span>Updated {formatDate(project.updatedAt)}</span>
-                    </div>
-                    <ChevronRight className={`h-5 w-5 transition-all ${
-                      project.isOwner === false
-                        ? 'text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1'
-                        : 'text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1'
-                    }`} />
                   </div>
                 </div>
               </div>

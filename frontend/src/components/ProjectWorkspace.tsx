@@ -25,6 +25,7 @@ import {
   ML_BRIEF,
   getOperationDisplayName,
 } from '../constants/nodeHelp';
+import { CascadeHeaderBrand } from './CascadeLogo';
 
 interface PipelineInfo {
   id: string;
@@ -924,14 +925,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
           {/* Left: Logo, Back, Project Name */}
           <div className="flex items-center space-x-4">
             {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-base">C</span>
-              </div>
-              <div className="hidden sm:block">
-                <h1 className="text-lg font-bold text-gray-900 tracking-tight">Cascade</h1>
-              </div>
-            </div>
+            <CascadeHeaderBrand showTagline={false} wordmarkClassName="hidden sm:block" />
             
             <div className="h-6 w-px bg-gray-300"></div>
             
@@ -1500,7 +1494,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{datasets.length}</p>
-                      <p className="text-sm text-gray-500">Datasets</p>
+                      <p className="text-sm text-gray-500">
+                        {datasets.length === 1 ? 'Dataset' : 'Datasets'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1511,7 +1507,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{pipelines.length}</p>
-                      <p className="text-sm text-gray-500">Pipelines</p>
+                      <p className="text-sm text-gray-500">
+                        {pipelines.length === 1 ? 'Pipeline' : 'Pipelines'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1522,7 +1520,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{savedGraphs.length}</p>
-                      <p className="text-sm text-gray-500">Visualizations</p>
+                      <p className="text-sm text-gray-500">
+                        {savedGraphs.length === 1 ? 'Visualization' : 'Visualizations'}
+                      </p>
                     </div>
                   </div>
                 </div>

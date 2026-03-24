@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, X } from 'lucide-react';
+import { CascadeMark } from './CascadeLogo';
 import { TransformPanel } from './TransformPanel';
 import { DataUpload } from './DataUpload';
 import { ResultsViewer } from './ResultsViewer';
@@ -85,9 +86,12 @@ export const SimpleLayout: React.FC = () => {
     <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Cascade</h1>
-          <span className="text-sm text-gray-500">Simple Data Transformations</span>
+        <div className="flex items-center gap-3">
+          <CascadeMark className="w-10 h-10 shrink-0 shadow-md" aria-hidden />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Cascade</h1>
+            <p className="text-sm text-gray-500">Simple Data Transformations</p>
+          </div>
         </div>
         
         <button

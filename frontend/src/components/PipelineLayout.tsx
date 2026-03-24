@@ -10,6 +10,7 @@ import { useWorkflowStore } from '../store/useWorkflowStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { datasetAPI, pipelineAPI } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
+import { CascadeMark } from './CascadeLogo';
 
 export const PipelineLayout: React.FC = () => {
   const {
@@ -387,9 +388,12 @@ export const PipelineLayout: React.FC = () => {
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between shadow-sm z-10">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Cascade Pipeline</h1>
-          <span className="text-sm text-gray-500">Visual Data Transformation</span>
+        <div className="flex items-center gap-3">
+          <CascadeMark className="w-10 h-10 shrink-0 shadow-md" aria-hidden />
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Cascade Pipeline</h1>
+            <p className="text-sm text-gray-500">Visual Data Transformation</p>
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">
