@@ -58,12 +58,10 @@ export const FullGraphConfigPanel: React.FC<FullGraphConfigPanelProps> = ({
 
   const selectedGraphType = graphTypes.find(t => t.type === config.graph_type);
 
-  const getColumnOptions = (fieldType: 'x' | 'y' | 'color' | 'size') => {
-    // For numeric fields, prefer numeric columns
-    if (fieldType === 'y' || fieldType === 'size') {
+  const getColumnOptions = (fieldType: 'x' | 'y' | 'color' | 'size' | 'z') => {
+    if (fieldType === 'y' || fieldType === 'size' || fieldType === 'z') {
       return numericColumns;
     }
-    // For other fields, show all columns
     return columns.map(c => c.name);
   };
 
@@ -103,9 +101,11 @@ export const FullGraphConfigPanel: React.FC<FullGraphConfigPanelProps> = ({
       );
     }
 
-    // Handle column fields
-    const fieldType = fieldName.includes('y') || fieldName.includes('size') ? 'y' : 
-                     fieldName.includes('color') ? 'color' : 'x';
+    let fieldType: 'x' | 'y' | 'color' | 'size' | 'z' = 'x';
+    if (fieldName === 'z_column') fieldType = 'z';
+    else if (fieldName.includes('size')) fieldType = 'size';
+    else if (fieldName.includes('color')) fieldType = 'color';
+    else if (fieldName === 'y_column') fieldType = 'y';
     
     const options = getColumnOptions(fieldType);
 
@@ -334,6 +334,21 @@ export const FullGraphConfigPanel: React.FC<FullGraphConfigPanelProps> = ({
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
+
+                {config.graph_type === 'scatter' && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Z-Axis Label (optional, 3D scatter)
+                    </label>
+                    <input
+                      type="text"
+                      value={config.z_label || ''}
+                      onChange={(e) => setConfig({ ...config, z_label: e.target.value || undefined })}
+                      placeholder="Z-axis title..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

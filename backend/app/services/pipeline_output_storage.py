@@ -74,16 +74,6 @@ def persist_execution_sqlite_as_dataset(
         if pipeline_id:
             saved_pipeline = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
 
-        output_dataset = None
-        if saved_pipeline and saved_pipeline.output_dataset_id:
-            output_dataset = db.query(Dataset).filter(
-                Dataset.id == saved_pipeline.output_dataset_id
-            ).first()
-        if not output_dataset and pipeline_id:
-            output_dataset = db.query(Dataset).filter(
-                Dataset.pipeline_id == pipeline_id
-            ).first()
-
         if dataset_name_override and dataset_name_override.strip():
             consistent_dataset_name = dataset_name_override.strip()
         else:
@@ -93,6 +83,19 @@ def persist_execution_sqlite_as_dataset(
                 else (pipeline_name_hint or "Untitled Pipeline")
             )
             consistent_dataset_name = f"{pipeline_name} - Output"
+
+        q = (
+            db.query(Dataset)
+            .filter(
+                Dataset.user_id == current_user.id,
+                Dataset.name == consistent_dataset_name,
+            )
+        )
+        if project_id:
+            q = q.filter(Dataset.project_id == project_id)
+        else:
+            q = q.filter(Dataset.project_id.is_(None))
+        output_dataset = q.order_by(Dataset.updated_at.desc()).first()
 
         user_prefix = f"users/{current_user.id}"
 
@@ -137,10 +140,6 @@ def persist_execution_sqlite_as_dataset(
 
         db.commit()
         db.refresh(output_dataset)
-
-        if saved_pipeline:
-            saved_pipeline.output_dataset_id = output_dataset.id
-            db.commit()
 
         return output_dataset, None
     except Exception as e:

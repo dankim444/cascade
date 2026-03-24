@@ -22,7 +22,7 @@ class Pipeline(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
     # Relationships
     user = relationship("User", backref="pipelines")
     project = relationship("Project", back_populates="pipelines")

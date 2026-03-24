@@ -29,12 +29,14 @@ class GraphConfig(BaseModel):
     graph_type: Literal["bar", "line", "scatter", "histogram", "box", "pie", "heatmap", "area"]
     x_column: Optional[str] = None
     y_column: Optional[str] = None
+    z_column: Optional[str] = None
     color_column: Optional[str] = None
     size_column: Optional[str] = None
     aggregation: Optional[str] = None
     title: Optional[str] = None
     x_label: Optional[str] = None
     y_label: Optional[str] = None
+    z_label: Optional[str] = None
     width: int = 800
     height: int = 600
     theme: Literal["plotly", "plotly_white", "plotly_dark", "ggplot2", "seaborn", "simple_white"] = "plotly_white"
@@ -286,9 +288,30 @@ def create_plotly_graph(df: pd.DataFrame, config: GraphConfig) -> go.Figure:
                          title=config.title, template=template)
     
     elif config.graph_type == "scatter":
-        fig = px.scatter(df, x=config.x_column, y=config.y_column, 
-                        color=config.color_column, size=config.size_column,
-                        title=config.title, template=template)
+        if config.z_column:
+            fig = px.scatter_3d(
+                df,
+                x=config.x_column,
+                y=config.y_column,
+                z=config.z_column,
+                color=config.color_column,
+                size=config.size_column,
+                title=config.title,
+                template=template,
+            )
+            # 3D markers render large by default; keep them compact unless size encoding is used.
+            if not config.size_column:
+                fig.update_traces(marker={"size": 4})
+        else:
+            fig = px.scatter(
+                df,
+                x=config.x_column,
+                y=config.y_column,
+                color=config.color_column,
+                size=config.size_column,
+                title=config.title,
+                template=template,
+            )
     
     elif config.graph_type == "histogram":
         fig = px.histogram(df, x=config.x_column, title=config.title, template=template)
@@ -352,18 +375,25 @@ def create_plotly_graph(df: pd.DataFrame, config: GraphConfig) -> go.Figure:
         raise ValueError(f"Unsupported graph type: {config.graph_type}")
     
     # Update layout with axis titles and better formatting
-    fig.update_layout(
-        width=config.width,
-        height=config.height,
-        xaxis_title=config.x_label or config.x_column,
-        yaxis_title=config.y_label or config.y_column,
-        title={
-            'text': config.title,
-            'x': 0.5,
-            'xanchor': 'center'
-        } if config.title else None
-    )
-    
+    layout_kwargs: Dict[str, Any] = {
+        "width": config.width,
+        "height": config.height,
+    }
+    if config.title:
+        layout_kwargs["title"] = {"text": config.title, "x": 0.5, "xanchor": "center"}
+
+    if config.graph_type == "scatter" and config.z_column:
+        layout_kwargs["scene"] = dict(
+            xaxis=dict(title=config.x_label or config.x_column),
+            yaxis=dict(title=config.y_label or config.y_column),
+            zaxis=dict(title=config.z_label or config.z_column),
+        )
+    else:
+        layout_kwargs["xaxis_title"] = config.x_label or config.x_column
+        layout_kwargs["yaxis_title"] = config.y_label or config.y_column
+
+    fig.update_layout(**layout_kwargs)
+
     return fig
 
 @router.get("/test")
@@ -424,6 +454,8 @@ async def generate_graph(
             raise HTTPException(status_code=400, detail=f"Column '{request.config.color_column}' not found")
         if request.config.size_column and request.config.size_column not in all_columns:
             raise HTTPException(status_code=400, detail=f"Column '{request.config.size_column}' not found")
+        if request.config.z_column and request.config.z_column not in all_columns:
+            raise HTTPException(status_code=400, detail=f"Column '{request.config.z_column}' not found")
 
         # Create the graph
         fig = create_plotly_graph(df, request.config)
@@ -487,10 +519,11 @@ async def get_graph_types():
             {
                 "type": "scatter",
                 "name": "Scatter Plot",
-                "description": "Show relationship between two variables",
+                "description": "Show relationship between two or three numeric variables (optional Z enables 3D)",
                 "fields": {
                     "x_column": {"label": "X-Axis Variable", "help": "First variable for comparison", "required": True},
                     "y_column": {"label": "Y-Axis Variable", "help": "Second variable for comparison", "required": True},
+                    "z_column": {"label": "Z-Axis Variable (3D)", "help": "Optional: third numeric variable for a 3D scatter plot", "required": False},
                     "color_column": {"label": "Color By", "help": "Optional: Column to color points by", "required": False},
                     "size_column": {"label": "Size By", "help": "Optional: Column to size points by", "required": False}
                 }

@@ -67,10 +67,10 @@ export const GraphViewer: React.FC<GraphViewerProps> = ({ graph, onClose, embedd
             }
             // Clear any existing content
             plotRef.current.innerHTML = '';
-            // Ensure container has proper styling
+            // Ensure container uses all available panel space
             plotRef.current.style.width = '100%';
-            plotRef.current.style.height = '500px';
-            plotRef.current.style.minHeight = '500px';
+            plotRef.current.style.height = '100%';
+            plotRef.current.style.minHeight = '0';
           }
           
           // Create new plot
@@ -181,7 +181,7 @@ Graph JSON: ${graph.graph_json?.substring(0, 500)}...
     return (
       <div
         ref={plotRef}
-        className="w-full h-full min-h-[500px]"
+        className="w-full h-full min-h-0"
       />
     );
   }
@@ -226,10 +226,10 @@ Graph JSON: ${graph.graph_json?.substring(0, 500)}...
         </div>
 
         {/* Graph Display */}
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 min-h-0 p-6 overflow-hidden">
           <div
             ref={plotRef}
-            className="w-full h-full min-h-[500px]"
+            className="w-full h-full min-h-0"
           />
         </div>
       </div>

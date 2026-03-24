@@ -147,8 +147,9 @@ async def run_transformation(
         # Execute pipeline
         result = executor.execute_pipeline(nodes, resolved_data_connections)
         
-        # If execution was successful, save the result as a dataset
-        if result.get('status') == 'success':
+        # If execution was successful, optionally persist full output as a dataset (Run Pipeline only).
+        persist_output = pipeline.get('persistOutputAsDataset', True)
+        if result.get('status') == 'success' and persist_output:
             try:
                 from app.services.pipeline_output_storage import persist_execution_sqlite_as_dataset
 

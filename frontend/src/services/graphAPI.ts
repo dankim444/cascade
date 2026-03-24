@@ -6,12 +6,14 @@ export interface GraphConfig {
   graph_type: string;
   x_column?: string;
   y_column?: string;
+  z_column?: string;
   color_column?: string;
   size_column?: string;
   aggregation?: string;
   title?: string;
   x_label?: string;
   y_label?: string;
+  z_label?: string;
   width: number;
   height: number;
   theme: string;

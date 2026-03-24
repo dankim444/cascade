@@ -23,6 +23,8 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedDatasetName, setSavedDatasetName] = useState<string | null>(result.outputDataset?.name || null);
+  const [savedDatasetId, setSavedDatasetId] = useState<string | null>(result.outputDataset?.id ?? null);
+  const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
 
   // Extract data from result
   const outputData = result.data || result.output_data || [];
@@ -37,32 +39,61 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
   const operationsPerformed = executionResults.map((r: any) => r.operation).filter(Boolean);
   const executionTime = result.executionTime || 'N/A';
 
-  const downloadCSV = () => {
-    if (outputData.length === 0) return;
+  const datasetIdForFullCsv = savedDatasetId ?? result.outputDataset?.id ?? null;
+  const datasetNameForFullCsv =
+    savedDatasetName ?? result.outputDataset?.name ?? 'pipeline_output';
+  const canDownloadFullCsv = Boolean(outputDataKey || datasetIdForFullCsv);
 
-    // Convert to CSV
-    const headers = columns.join(',');
-    const rows = outputData.map((row: any) => 
-      columns.map(col => {
-        const value = row[col];
-        // Escape quotes and wrap in quotes if contains comma
-        if (value === null || value === undefined) return '';
-        const str = String(value);
-        return str.includes(',') ? `"${str.replace(/"/g, '""')}"` : str;
-      }).join(',')
-    );
-    const csv = [headers, ...rows].join('\n');
-
-    // Download
-    const blob = new Blob([csv], { type: 'text/csv' });
+  const triggerBlobFileDownload = (blob: Blob, filename: string) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cascade_output_${Date.now()}.csv`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+  };
+
+  const downloadPreviewAsCsv = () => {
+    if (outputData.length === 0) return;
+    const headers = columns.join(',');
+    const rows = outputData.map((row: any) =>
+      columns.map((col) => {
+        const value = row[col];
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        return str.includes(',') ? `"${str.replace(/"/g, '""')}"` : str;
+      }).join(','),
+    );
+    const csv = [headers, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    triggerBlobFileDownload(blob, `cascade_preview_${Date.now()}.csv`);
+  };
+
+  const downloadCSV = async () => {
+    if (canDownloadFullCsv) {
+      setIsDownloadingCsv(true);
+      try {
+        if (datasetIdForFullCsv) {
+          await datasetAPI.downloadCsv(datasetIdForFullCsv, datasetNameForFullCsv);
+          return;
+        }
+        if (outputDataKey) {
+          const blob = await datasetAPI.downloadExecutionOutputCsv(outputDataKey);
+          const safe = outputDataKey.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80);
+          triggerBlobFileDownload(blob, `${safe || 'pipeline_output'}.csv`);
+          return;
+        }
+      } catch (e: any) {
+        alert(e?.message || 'Download failed');
+      } finally {
+        setIsDownloadingCsv(false);
+      }
+      return;
+    }
+
+    downloadPreviewAsCsv();
   };
 
   const handleSaveAsDataset = async () => {
@@ -85,6 +116,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
           rowCount: result.outputRows,
         });
         setSavedDatasetName(dataset.name);
+        setSavedDatasetId(dataset.id);
         onDatasetSaved?.();
         alert(`Dataset saved successfully: ${dataset.name}`);
         return;
@@ -116,6 +148,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
       const csvFile = new File([csvBlob], `pipeline_output_${Date.now()}.csv`, { type: 'text/csv' });
       const dataset = await datasetAPI.upload(csvFile, projectId);
       setSavedDatasetName(dataset.name);
+      setSavedDatasetId(dataset.id);
       onDatasetSaved?.();
       alert(
         `Dataset saved (preview rows only — ${outputData.length} rows). Run the pipeline again and save immediately if you need the full result.`
@@ -166,7 +199,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
 
         {/* Success Content */}
         {isSuccess && (
-          <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
             {/* Pipeline Summary */}
             {executionResults.length > 0 && (
               <div className="px-6 py-3 bg-blue-50 border-b border-blue-200">
@@ -234,17 +267,34 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
                     )}
                   </button>
                 )}
-                {outputData.length > 0 && (
+                {(outputData.length > 0 || canDownloadFullCsv) && (
                   <button
-                    onClick={downloadCSV}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                    onClick={() => void downloadCSV()}
+                    disabled={isDownloadingCsv || (outputData.length === 0 && !canDownloadFullCsv)}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={canDownloadFullCsv ? 'Full result CSV' : 'Preview CSV'}
                   >
-                    <Download className="h-4 w-4" />
-                    <span>Download CSV</span>
+                    {isDownloadingCsv ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                        <span>Downloading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4" />
+                        <span>{canDownloadFullCsv ? 'Download CSV' : 'Download preview CSV'}</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
             </div>
+
+            {outputData.length > 0 && (
+              <div className="px-6 py-1.5 bg-slate-50 border-b border-slate-200">
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Preview</span>
+              </div>
+            )}
             
             {saveError && (
               <div className="px-6 py-3 bg-red-50 border-b border-red-200">
@@ -257,18 +307,18 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
 
             {/* Data Table */}
             {outputData.length > 0 ? (
-              <div className="flex-1 overflow-auto px-6 py-4">
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0">
+              <div className="flex-1 min-h-0 min-w-0 overflow-auto px-6 py-4">
+                <div className="border border-gray-200 rounded-lg">
+                  <table className="w-full min-w-max divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">
+                        <th className="sticky left-0 top-0 z-30 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100 border-r border-gray-200 shadow-[0_1px_0_0_rgb(229_231_235)]">
                           #
                         </th>
                         {columns.map((col) => (
                           <th
                             key={col}
-                            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            className="sticky top-0 z-20 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50 shadow-[0_1px_0_0_rgb(229_231_235)]"
                           >
                             {col}
                           </th>
@@ -278,13 +328,13 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
                     <tbody className="bg-white divide-y divide-gray-200">
                       {outputData.slice(0, 100).map((row: any, idx: number) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-gray-500 font-medium bg-gray-50">
+                          <td className="sticky left-0 z-10 px-4 py-3 text-sm text-gray-500 font-medium bg-gray-50 border-r border-gray-200">
                             {idx + 1}
                           </td>
                           {columns.map((col) => (
                             <td
                               key={col}
-                              className="px-4 py-3 text-sm text-gray-900 max-w-xs truncate"
+                              className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap"
                               title={String(row[col] ?? 'null')}
                             >
                               {row[col] !== null && row[col] !== undefined 
@@ -300,10 +350,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
                 </div>
                 
                 {outputData.length > 100 && (
-                  <div className="mt-4 text-center text-sm text-gray-500">
-                    Showing first 100 rows of {rowCount.toLocaleString()} total rows.
-                    Save as Dataset or download the dataset from the project to get the full table.
-                  </div>
+                  <div className="mt-4 text-center text-sm text-gray-500">First 100 rows</div>
                 )}
               </div>
             ) : (
@@ -341,46 +388,6 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
           </div>
         )}
 
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg flex justify-end space-x-3">
-          {isSuccess && outputData.length > 0 && (
-            <>
-              {(outputData.length > 0 || outputDataKey) && projectId && !savedDatasetName && !result.outputDataset && (
-                <button
-                  onClick={handleSaveAsDataset}
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                  title="Save the pipeline output as a dataset in this project"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      <span>Save as Dataset</span>
-                    </>
-                  )}
-                </button>
-              )}
-              <button
-                onClick={downloadCSV}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-              >
-                <Download className="h-4 w-4" />
-                <span>Download Results</span>
-              </button>
-            </>
-          )}
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );

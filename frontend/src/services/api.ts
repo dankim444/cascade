@@ -149,6 +149,31 @@ export const datasetAPI = {
     return response.data;
   },
 
+  /** Full CSV from the executor's on-disk SQLite (not the API preview). */
+  downloadExecutionOutputCsv: async (outputDataKey: string): Promise<Blob> => {
+    const response = await api.get('/api/datasets/execution-output/csv', {
+      params: { output_data_key: outputDataKey },
+      responseType: 'blob',
+      validateStatus: () => true,
+    });
+    if (response.status !== 200) {
+      let msg = 'Download failed';
+      if (response.data instanceof Blob) {
+        try {
+          const text = await response.data.text();
+          const parsed = JSON.parse(text) as { detail?: string };
+          if (typeof parsed.detail === 'string') {
+            msg = parsed.detail;
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      throw new Error(msg);
+    }
+    return response.data as Blob;
+  },
+
   /** Loads presigned S3 URL in a hidden iframe so the file downloads without opening a new tab. */
   downloadCsv: async (id: string, _displayName: string): Promise<void> => {
     const response = await api.get<{ url: string }>(`/api/datasets/${id}/download`);

@@ -5,7 +5,8 @@ Implements the core transformations: select, filter, groupby, join
 
 import sqlite3
 import json
-from typing import Dict, List, Any, Optional
+from collections import defaultdict, deque
+from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -147,10 +148,58 @@ class TransformationExecutor:
             }
     
     def _build_execution_order(self, nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Build execution order based on parent-child relationships"""
-        # For now, simple linear execution
-        # TODO: Implement proper DAG traversal
-        return sorted(nodes, key=lambda x: x.get('id', ''))
+        """
+        Topological order: each node runs after its transform parents (parent / secondaryParent).
+        Sorting by id was wrong — e.g. transform-filter-* can sort before transform-select-* and
+        then `data` still holds the parent node id, which is not a data connection key.
+        """
+        if not nodes:
+            return []
+
+        nodes_with_id = [n for n in nodes if n.get('id')]
+        nodes_without_id = [n for n in nodes if not n.get('id')]
+        if not nodes_with_id:
+            return list(nodes)
+
+        node_by_id: Dict[str, Dict[str, Any]] = {}
+        for n in nodes_with_id:
+            node_by_id[n['id']] = n
+
+        node_ids: Set[str] = set(node_by_id.keys())
+        # deps[nid] = transform node ids that must run before nid
+        deps: Dict[str, Set[str]] = {nid: set() for nid in node_ids}
+        for n in nodes_with_id:
+            nid = n.get('id')
+            if not nid:
+                continue
+            for pkey in ('parent', 'secondaryParent'):
+                p = n.get(pkey)
+                if p and p in node_ids and p != nid:
+                    deps[nid].add(p)
+
+        # Edge dep -> nid (dep must complete before nid)
+        adj: Dict[str, List[str]] = defaultdict(list)
+        in_degree: Dict[str, int] = {nid: 0 for nid in node_ids}
+        for nid in node_ids:
+            for d in deps[nid]:
+                adj[d].append(nid)
+                in_degree[nid] += 1
+
+        queue = deque(sorted(nid for nid in node_ids if in_degree[nid] == 0))
+        ordered: List[Dict[str, Any]] = []
+        while queue:
+            cur = queue.popleft()
+            ordered.append(node_by_id[cur])
+            for succ in sorted(adj[cur]):
+                in_degree[succ] -= 1
+                if in_degree[succ] == 0:
+                    queue.append(succ)
+
+        if len(ordered) != len(nodes_with_id):
+            # Cycle or inconsistent graph — preserve deterministic fallback
+            return sorted(nodes, key=lambda x: x.get('id', ''))
+
+        return ordered + nodes_without_id
     
     def _execute_node(self, node: Dict[str, Any], input_data_key: Optional[str], data_connections: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Execute a single transformation node"""

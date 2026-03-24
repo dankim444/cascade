@@ -19,10 +19,15 @@ export const SimpleGraphConfigPanel: React.FC<SimpleGraphConfigPanelProps> = ({
   const [graphType, setGraphType] = useState('bar');
   const [xColumn, setXColumn] = useState('');
   const [yColumn, setYColumn] = useState('');
-  
+  const [zColumn, setZColumn] = useState('');
+
   // Get the current dataset and its columns
   const currentDataset = datasets.find(d => d.dataKey === dataKey);
   const columns = currentDataset?.columns || [];
+  const numericColumns = columns.filter((col) => {
+    const t = String(col.type || '').toLowerCase();
+    return t.includes('number') || t.includes('int') || t.includes('float') || t.includes('double');
+  });
   
   // Set default columns when dataset changes
   useEffect(() => {
@@ -41,10 +46,14 @@ export const SimpleGraphConfigPanel: React.FC<SimpleGraphConfigPanelProps> = ({
     const config: GraphConfig = {
       graph_type: graphType,
       x_column: xColumn,
-      y_column: graphType === 'histogram' ? undefined : yColumn, // Histogram only needs x_column
+      y_column: graphType === 'histogram' ? undefined : yColumn,
+      z_column:
+        graphType === 'scatter' && zColumn
+          ? zColumn
+          : undefined,
       width: 800,
       height: 600,
-      theme: 'plotly_white'
+      theme: 'plotly_white',
     };
     onGenerate(config);
   };
@@ -148,6 +157,26 @@ export const SimpleGraphConfigPanel: React.FC<SimpleGraphConfigPanelProps> = ({
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {columns.map((col) => (
+                        <option key={col.name} value={col.name}>
+                          {col.name} ({col.type})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {graphType === 'scatter' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Z-Axis Column (optional, 3D)
+                    </label>
+                    <select
+                      value={zColumn}
+                      onChange={(e) => setZColumn(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">None (2D scatter)</option>
+                      {(numericColumns.length > 0 ? numericColumns : columns).map((col) => (
                         <option key={col.name} value={col.name}>
                           {col.name} ({col.type})
                         </option>

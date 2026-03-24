@@ -56,7 +56,12 @@ interface WorkflowState {
   savePipeline: () => void;
   loadPipeline: (pipeline: PipelineType) => void;
   executePipeline: (pipelineId?: string, projectId?: string) => Promise<any>;
-  executeToNode: (nodeId: string, pipelineId?: string, projectId?: string) => Promise<any>;
+  executeToNode: (
+    nodeId: string,
+    pipelineId?: string,
+    projectId?: string,
+    options?: { persistOutputAsDataset?: boolean }
+  ) => Promise<any>;
   
   // Current pipeline context
   currentPipelineId: string | null;
@@ -203,7 +208,12 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     });
   },
 
-  executeToNode: async (targetNodeId: string, pipelineId?: string, projectId?: string) => {
+  executeToNode: async (
+    targetNodeId: string,
+    pipelineId?: string,
+    projectId?: string,
+    options?: { persistOutputAsDataset?: boolean }
+  ) => {
     const state = get();
     
     // Build path from data sources to target node (topological order)
@@ -323,7 +333,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         rowCount: dc.rowCount
       })),
       id: pipelineId || state.currentPipelineId || undefined,
-      projectId: projectId || state.currentProjectId || undefined
+      projectId: projectId || state.currentProjectId || undefined,
+      persistOutputAsDataset: options?.persistOutputAsDataset === true,
     };
     
     console.log('Executing to node:', targetNodeId);
@@ -460,7 +471,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     // Execute to the last leaf node (or first if multiple)
     if (leafNodes.length > 0) {
       const lastNode = leafNodes[leafNodes.length - 1];
-      return get().executeToNode(lastNode.id, pipelineId, projectId);
+      return get().executeToNode(lastNode.id, pipelineId, projectId, {
+        persistOutputAsDataset: true,
+      });
     }
     
     throw new Error('No nodes to execute');

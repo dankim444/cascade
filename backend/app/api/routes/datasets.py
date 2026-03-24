@@ -2,6 +2,7 @@
 Dataset routes with authentication and S3 storage
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.responses import Response
 import re
 from sqlalchemy.orm import Session
 from typing import Any, List, Optional
@@ -23,6 +24,7 @@ from app.core.project_access import check_project_access, user_can_edit_project
 from app.models.user import User
 from app.models.dataset import Dataset
 from app.services.s3_service import s3_service
+from app.services.pipeline_output_storage import _is_safe_output_data_key
 
 router = APIRouter(prefix="/api/datasets", tags=["datasets"])
 
@@ -380,6 +382,48 @@ async def create_dataset_from_execution_output(
         "projectId": output_dataset.project_id,
         "uploadedAt": output_dataset.uploaded_at.isoformat(),
     }
+
+
+@router.get("/execution-output/csv")
+async def download_execution_output_csv(
+    output_data_key: str,
+    _current_user: User = Depends(get_current_user),
+):
+    """
+    Stream the full result as CSV from the executor's on-disk SQLite file (data/{key}.db).
+    Requires authentication; does not create or require a Dataset row.
+    """
+    key = (output_data_key or "").strip()
+    if not key or not _is_safe_output_data_key(key):
+        raise HTTPException(status_code=400, detail="Invalid output data key")
+
+    output_db_path = os.path.join("data", f"{key}.db")
+    if not os.path.exists(output_db_path):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "Full output file is no longer on the server (it may have been removed). "
+                "Run the pipeline again, then download."
+            ),
+        )
+
+    try:
+        output_conn = sqlite3.connect(output_db_path)
+        df = pd.read_sql_query("SELECT * FROM data", output_conn)
+        output_conn.close()
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_bytes = csv_buffer.getvalue().encode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build CSV: {str(e)}")
+
+    safe_fn = re.sub(r"[^a-zA-Z0-9._-]+", "_", key)[:80] or "output"
+    filename = f"{safe_fn}.csv"
+    return Response(
+        content=csv_bytes,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.get("")
