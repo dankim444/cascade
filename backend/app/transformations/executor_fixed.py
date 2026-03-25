@@ -146,7 +146,54 @@ class TransformationExecutor:
                 "traceback": traceback.format_exc(),
                 "timestamp": datetime.now().isoformat()
             }
-    
+
+    def validate_pipeline_graph(
+        self, nodes: List[Dict[str, Any]], data_connections: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Run the same per-node execution as execute_pipeline, stopping at first failure.
+        Returns { valid: bool, errors: [{ nodeId: str, message: str }] }
+        """
+        dc_copy: List[Dict[str, Any]] = [dict(d) for d in data_connections]
+        errors: List[Dict[str, str]] = []
+
+        if not nodes:
+            if not dc_copy:
+                return {
+                    "valid": False,
+                    "errors": [{"nodeId": "", "message": "No data connections"}],
+                }
+            return {"valid": True, "errors": []}
+
+        node_outputs: Dict[str, str] = {}
+        execution_order = self._build_execution_order(nodes)
+
+        for node in execution_order:
+            node_id = node.get("id", "unknown")
+            try:
+                parent_id = node.get("parent")
+                if parent_id and parent_id in node_outputs:
+                    input_data_key = node_outputs[parent_id]
+                else:
+                    input_data_key = node.get("data")
+
+                result = self._execute_node(node, input_data_key, dc_copy)
+                output_key = result["output_data_key"]
+                node_outputs[node_id] = output_key
+                dc_copy.append(
+                    {
+                        "dataKey": output_key,
+                        "sqlConnection": f"data/{output_key}.db",
+                        "schema": {"columns": result.get("output_schema", [])},
+                        "rowCount": result.get("row_count", 0),
+                    }
+                )
+            except Exception as e:
+                errors.append({"nodeId": str(node_id), "message": str(e)})
+                return {"valid": False, "errors": errors}
+
+        return {"valid": True, "errors": []}
+
     def _build_execution_order(self, nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         Topological order: each node runs after its transform parents (parent / secondaryParent).

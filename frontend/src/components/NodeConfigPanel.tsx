@@ -8,7 +8,7 @@ import { getOperationDisplayName, getEditorHelp } from '../constants/nodeHelp';
 interface NodeConfigPanelProps {
   selectedNode: FlowNode | null;
   datasets: Dataset[];
-  onUpdateNode: (nodeId: string, updates: any) => void;
+  onUpdateNode: (nodeId: string, updates: any) => void | Promise<void>;
   onClose: () => void;
   isLocked?: boolean;
   lockedByName?: string;
@@ -42,13 +42,19 @@ export const NodeConfigPanel: React.FC<NodeConfigPanelProps> = ({
   const isDataNode = selectedNode.type === 'dataNode';
   const operation = selectedNode.data.operation;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (isLocked || isReadOnly) return;
-    onUpdateNode(selectedNode.id, {
-      label,
-      config,
-    });
-    onClose();
+    try {
+      await Promise.resolve(
+        onUpdateNode(selectedNode.id, {
+          label,
+          config,
+        }),
+      );
+      onClose();
+    } catch {
+      /* Parent shows alert; keep panel open */
+    }
   };
 
   // Get available columns from the parent node's output schema or the input dataset

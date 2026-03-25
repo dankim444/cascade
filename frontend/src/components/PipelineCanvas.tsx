@@ -41,6 +41,8 @@ interface PipelineCanvasProps {
   onExecuteFromNode?: (nodeId: string) => void;
   onDeleteNode?: (nodeId: string) => void;
   isReadOnly?: boolean;
+  /** When true, Run / View Output / Delete actions are disabled (e.g. invalid pipeline graph). */
+  pipelineActionsDisabled?: boolean;
 }
 
 export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
@@ -54,6 +56,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
   onExecuteFromNode,
   onDeleteNode,
   isReadOnly = false,
+  pipelineActionsDisabled = false,
 }) => {
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -259,7 +262,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
         <Panel position="top-right" className="bg-white rounded-lg shadow-lg p-3 space-y-2">
           <button
             onClick={onExecutePipeline}
-            disabled={isReadOnly}
+            disabled={isReadOnly || pipelineActionsDisabled}
             className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             title="Execute entire pipeline"
           >
@@ -271,7 +274,7 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
             <>
               <button
                 onClick={handleExecuteFromSelected}
-                disabled={isReadOnly}
+                disabled={isReadOnly || pipelineActionsDisabled}
                 className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 title="Execute pipeline up to this node"
               >

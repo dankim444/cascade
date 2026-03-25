@@ -2,11 +2,16 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, List
 from datetime import datetime
+from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 from app.transformations.executor_fixed import TransformationExecutor
+from app.services.pipeline_validation import (
+    prepare_pipeline_for_execution,
+    validate_pipeline_payload,
+)
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.core.project_access import check_project_access, user_can_edit_project
@@ -66,85 +71,24 @@ async def run_transformation(
     db: Session = Depends(get_db)
 ):
     """Execute a transformation pipeline"""
-    from app.models.dataset import Dataset
-    from app.services.s3_service import s3_service
-    import tempfile
-    import os
-    import sqlite3
-    
-    temp_files_to_cleanup = []  # Track temp files for cleanup
-    
+    temp_files_to_cleanup: List[str] = []
+
     try:
-        # Extract nodes and data connections from pipeline
-        nodes = pipeline.get('nodes', [])
-        data_connections_raw = pipeline.get('dataConnections', [])
-        project_id = pipeline.get('projectId')
-        
-        # Resolve data connections: convert dataKeys to actual S3 downloads
-        resolved_data_connections = []
-        
-        for conn in data_connections_raw:
-            data_key = conn.get('dataKey')
-            if not data_key:
-                continue
-            
-            # Find dataset in database by dataKey
-            # First try to find by user ownership
-            dataset = db.query(Dataset).filter(
-                Dataset.data_key == data_key,
-                Dataset.user_id == current_user.id
-            ).first()
-            
-            # If not found, check if user has access via project sharing
-            if not dataset:
-                dataset = db.query(Dataset).filter(Dataset.data_key == data_key).first()
-                if dataset and dataset.project_id:
-                    # Check if user has access to the project
-                    project, _, _ = check_project_access(dataset.project_id, current_user.id, db)
-                    if not project:
-                        dataset = None  # User doesn't have access
-            
-            if dataset:
-                # Download database from S3 to temporary file
-                db_content = s3_service.download_file(dataset.s3_db_path)
-                if db_content:
-                    # Create temporary database file
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-                    temp_file.write(db_content)
-                    temp_file.close()
-                    temp_path = temp_file.name
-                    temp_files_to_cleanup.append(temp_path)
-                    
-                    # Create resolved connection
-                    resolved_conn = {
-                        'dataKey': dataset.data_key,
-                        'sqlConnection': temp_path,  # Local temp path
-                        'schema': {'columns': dataset.columns},
-                        'rowCount': dataset.row_count
-                    }
-                    resolved_data_connections.append(resolved_conn)
-                else:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Could not download dataset {data_key} from S3"
-                    )
-            else:
-                # Might be an intermediate result from a previous transformation
-                # Check if it's a local temp file path (from intermediate results)
-                sql_connection = conn.get('sqlConnection', '')
-                if os.path.exists(sql_connection):
-                    # It's already a local file (intermediate result)
-                    resolved_data_connections.append(conn)
-                else:
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Dataset with dataKey {data_key} not found for user"
-                    )
-        
-        # Create transformation executor with resolved connections
+        nodes, resolved_data_connections, temp_files, verrs = prepare_pipeline_for_execution(
+            db, current_user, pipeline
+        )
+        temp_files_to_cleanup.extend(temp_files)
+
+        if verrs:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Pipeline validation failed",
+                    "errors": verrs,
+                },
+            )
+
         executor = TransformationExecutor(resolved_data_connections)
-        
-        # Execute pipeline
         result = executor.execute_pipeline(nodes, resolved_data_connections)
         
         # If execution was successful, optionally persist full output as a dataset (Run Pipeline only).
@@ -223,6 +167,17 @@ async def save_pipeline(
     if project_id:
         if not user_can_edit_project(project_id, current_user.id, db):
             raise HTTPException(status_code=403, detail="You don't have permission to save pipelines in this project")
+
+    if pipeline.get("flowNodes") is not None or pipeline.get("nodes") is not None:
+        ok, errors = validate_pipeline_payload(db, current_user, pipeline)
+        if not ok:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Pipeline validation failed",
+                    "errors": errors,
+                },
+            )
     
     # Check if pipeline exists (owned by user OR in a project user can edit)
     existing = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
@@ -286,6 +241,75 @@ async def save_pipeline(
             "createdAt": new_pipeline.created_at.isoformat(),
             "updatedAt": updated_at.isoformat()
         }
+
+
+class CommitNodeBody(BaseModel):
+    node_id: str
+    node: Dict[str, Any]
+
+
+@app.post("/api/pipelines/{pipeline_id}/commit-node")
+async def commit_pipeline_node(
+    pipeline_id: str,
+    body: CommitNodeBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Merge one node into the saved pipeline definition, validate full graph, then persist."""
+    pipeline_row = db.query(Pipeline).filter(Pipeline.id == pipeline_id).first()
+    if not pipeline_row:
+        raise HTTPException(status_code=404, detail="Pipeline not found")
+
+    can_edit = pipeline_row.user_id == current_user.id
+    if not can_edit and pipeline_row.project_id:
+        can_edit = user_can_edit_project(pipeline_row.project_id, current_user.id, db)
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="You don't have permission to edit this pipeline")
+
+    definition = dict(pipeline_row.definition or {})
+    flow_nodes = list(definition.get("flowNodes") or [])
+    found = False
+    for i, n in enumerate(flow_nodes):
+        if n.get("id") == body.node_id:
+            flow_nodes[i] = body.node
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Node not found in pipeline")
+
+    definition["flowNodes"] = flow_nodes
+    merged: Dict[str, Any] = {
+        **definition,
+        "id": pipeline_id,
+        "name": pipeline_row.name,
+        "projectId": pipeline_row.project_id or definition.get("projectId"),
+    }
+
+    ok, errors = validate_pipeline_payload(db, current_user, merged)
+    if not ok:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Pipeline validation failed",
+                "errors": errors,
+            },
+        )
+
+    pipeline_row.definition = merged
+    pipeline_row.updated_at = datetime.now()
+    db.commit()
+    db.refresh(pipeline_row)
+
+    updated_at = pipeline_row.updated_at or pipeline_row.created_at
+    return {
+        "id": pipeline_row.id,
+        "name": pipeline_row.name,
+        "projectId": pipeline_row.project_id,
+        "definition": pipeline_row.definition,
+        "createdAt": pipeline_row.created_at.isoformat(),
+        "updatedAt": updated_at.isoformat(),
+    }
+
 
 @app.get("/api/pipelines")
 async def get_pipelines(

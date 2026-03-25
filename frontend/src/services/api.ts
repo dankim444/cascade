@@ -219,10 +219,40 @@ export const datasetAPI = {
   },
 };
 
+export type PipelineValidationErrorItem = { nodeId: string; message: string };
+
+export function formatPipelineValidationError(detail: unknown): string {
+  if (detail == null) return 'Request failed';
+  if (typeof detail === 'string') return detail;
+  if (typeof detail === 'object' && detail !== null && 'errors' in detail) {
+    const d = detail as { message?: string; errors?: PipelineValidationErrorItem[] };
+    const lines: string[] = [d.message || 'Validation failed'];
+    if (d.errors?.length) {
+      for (const e of d.errors) {
+        lines.push(e.nodeId ? `[${e.nodeId}] ${e.message}` : e.message);
+      }
+    }
+    return lines.join('\n');
+  }
+  return JSON.stringify(detail);
+}
+
 // Pipeline API
 export const pipelineAPI = {
   save: async (pipeline: any): Promise<any> => {
     const response = await api.post('/api/pipelines/save', pipeline);
+    return response.data;
+  },
+
+  commitNode: async (
+    pipelineId: string,
+    nodeId: string,
+    node: Record<string, unknown>,
+  ): Promise<any> => {
+    const response = await api.post(`/api/pipelines/${pipelineId}/commit-node`, {
+      node_id: nodeId,
+      node,
+    });
     return response.data;
   },
 

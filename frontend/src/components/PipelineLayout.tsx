@@ -8,7 +8,7 @@ import { NodeDataPreview } from './NodeDataPreview';
 import { MLResultsDisplay } from './MLResultsDisplay';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { datasetAPI, pipelineAPI } from '../services/api';
+import { datasetAPI, pipelineAPI, formatPipelineValidationError } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
 import { CascadeMark } from './CascadeLogo';
 
@@ -325,7 +325,8 @@ export const PipelineLayout: React.FC = () => {
       alert('Pipeline saved successfully!');
     } catch (error: any) {
       console.error('Failed to save pipeline:', error);
-      alert('Failed to save pipeline: ' + (error.message || 'Unknown error'));
+      const detail = error.response?.data?.detail;
+      alert(formatPipelineValidationError(detail) || error.message || 'Unknown error');
     }
   };
 
