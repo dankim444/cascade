@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Upload, X } from 'lucide-react';
 import { FullGraphConfigPanel } from './FullGraphConfigPanel';
 import { GraphViewer } from './GraphViewer';
@@ -13,6 +13,9 @@ interface GraphsLayoutProps {
   onGraphSaved?: () => void;
   canEdit?: boolean;
   liveRefreshToken?: number;
+  openSavedGraphId?: string | null;
+  openSavedGraphNonce?: number;
+  onOpenSavedGraphHandled?: () => void;
 }
 
 export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
@@ -20,6 +23,9 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
   onGraphSaved,
   canEdit: _canEdit,
   liveRefreshToken,
+  openSavedGraphId,
+  openSavedGraphNonce,
+  onOpenSavedGraphHandled,
 }) => {
   const canEdit = _canEdit ?? true;
   const { datasets, setDatasets } = useWorkflowStore();
@@ -30,6 +36,8 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
   const [savedGraphs, setSavedGraphs] = useState<SavedGraph[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const loadRequestIdRef = useRef(0);
+  const handledOpenNonceRef = useRef<number | null>(null);
 
   // Datasets are now available directly from the Zustand store
   // No need for useEffect to load them
@@ -126,6 +134,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
   };
 
   const handleLoadSavedGraph = async (savedGraph: SavedGraph) => {
+    const requestId = ++loadRequestIdRef.current;
     setSelectedDataKey(savedGraph.data_key);
     
     setIsGenerating(true);
@@ -134,14 +143,18 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
         data_key: savedGraph.data_key,
         config: savedGraph.config
       });
+      if (requestId !== loadRequestIdRef.current) return;
       setCurrentGraph(response);
       setActiveSavedGraph(savedGraph);
     } catch (error) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error('Error loading saved graph:', error);
       const message = error instanceof Error ? error.message : 'Failed to load saved graph.';
       alert(message);
     } finally {
-      setIsGenerating(false);
+      if (requestId === loadRequestIdRef.current) {
+        setIsGenerating(false);
+      }
     }
   };
 
@@ -198,6 +211,19 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
       alert(message);
     }
   };
+
+  useEffect(() => {
+    if (!openSavedGraphId) return;
+    if (typeof openSavedGraphNonce !== 'number') return;
+    if (handledOpenNonceRef.current === openSavedGraphNonce) return;
+
+    const targetGraph = savedGraphs.find((graph) => graph.id === openSavedGraphId);
+    if (!targetGraph) return;
+
+    handledOpenNonceRef.current = openSavedGraphNonce;
+    onOpenSavedGraphHandled?.();
+    void handleLoadSavedGraph(targetGraph);
+  }, [openSavedGraphId, openSavedGraphNonce, savedGraphs, onOpenSavedGraphHandled]);
 
   const refreshDatasets = useCallback(async () => {
     const latestDatasets = await datasetAPI.getAll(projectId);
@@ -273,7 +299,15 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
       </div>
 
       <div className="flex-1 bg-white overflow-y-auto">
-        {currentGraph ? (
+        {isGenerating && !currentGraph ? (
+          <div className="h-full flex items-center justify-center">
+            <div className="text-center">
+              <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+              <p className="text-sm font-medium text-gray-700">Loading graph...</p>
+              <p className="text-xs text-gray-500 mt-1">This can take a few seconds for larger datasets.</p>
+            </div>
+          </div>
+        ) : currentGraph ? (
           <div className="h-full flex flex-col">
             {/* Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4">
@@ -291,6 +325,8 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
                   {activeSavedGraph && (
                     <button
                       onClick={() => {
+                        loadRequestIdRef.current += 1;
+                        setIsGenerating(false);
                         setCurrentGraph(null);
                         setActiveSavedGraph(null);
                       }}

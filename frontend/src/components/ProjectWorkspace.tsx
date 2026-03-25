@@ -90,6 +90,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [isSaving, setIsSaving] = useState(false);
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
   const [savedGraphs, setSavedGraphs] = useState<SavedGraphInfo[]>([]);
+  const [requestedVisualizationId, setRequestedVisualizationId] = useState<string | null>(null);
+  const [visualizationOpenNonce, setVisualizationOpenNonce] = useState(0);
   const [showPipelineManager, setShowPipelineManager] = useState(false);
   const [showNewPipelineModal, setShowNewPipelineModal] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState('');
@@ -207,6 +209,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }));
     setSavedGraphs(graphInfos);
   }, [projectId]);
+
+  const handleOpenVisualizationFromOverview = useCallback((graphId: string) => {
+    setRequestedVisualizationId(graphId);
+    setVisualizationOpenNonce((prev) => prev + 1);
+    setActiveTab('visualizations');
+  }, []);
 
   // Load project data
   useEffect(() => {
@@ -1791,7 +1799,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {savedGraphs.map((graph) => (
                       <div
                         key={graph.id}
-                        onClick={() => setActiveTab('visualizations')}
+                        onClick={() => handleOpenVisualizationFromOverview(graph.id)}
                         className="group bg-white rounded-xl border border-gray-200 hover:border-indigo-300 p-5 cursor-pointer transition-all hover:shadow-lg"
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -2001,6 +2009,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             onGraphSaved={refreshSavedGraphs}
             canEdit={canEdit}
             liveRefreshToken={visualizationChangeTick}
+            openSavedGraphId={requestedVisualizationId}
+            openSavedGraphNonce={visualizationOpenNonce}
+            onOpenSavedGraphHandled={() => setRequestedVisualizationId(null)}
           />
         )}
       </main>
