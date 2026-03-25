@@ -53,6 +53,17 @@ type ProjectPermissionChangedPayload = {
   permission?: 'view' | 'edit' | 'admin';
 };
 
+export type ChatMessage = {
+  id: string;
+  projectId: string;
+  tab: string;
+  kind: 'user' | 'system';
+  senderUserId?: string;
+  senderName?: string;
+  text: string;
+  timestamp: string;
+};
+
 type PresenceMessage =
   | { type: 'presence.snapshot'; payload: { users: PresenceUser[]; locks?: Record<string, LockHolder>; pipelineStatus?: PipelineStatus } }
   | { type: 'presence.join'; payload: { user: PresenceUser } }
@@ -65,7 +76,10 @@ type PresenceMessage =
   | { type: 'edge.update'; payload: EdgeUpdatePayload }
   | { type: 'pipeline.status'; payload: PipelineStatus }
   | { type: 'visualization.changed'; payload: VisualizationChangedPayload }
-  | { type: 'project.permission_changed'; payload: ProjectPermissionChangedPayload };
+  | { type: 'project.permission_changed'; payload: ProjectPermissionChangedPayload }
+  | { type: 'chat.message'; payload: ChatMessage }
+  | { type: 'chat.history'; payload: { tab: string; messages: ChatMessage[] } }
+  | { type: 'chat.error'; payload: { message: string } };
 
 const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
@@ -95,6 +109,8 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
   const [userTabs, setUserTabs] = useState<Record<string, string>>({});
   const [locks, setLocks] = useState<Record<string, LockHolder>>({});
   const [pipelineStatus, setPipelineStatus] = useState<PipelineStatus>({ status: 'idle' });
+  const [chatMessagesByTab, setChatMessagesByTab] = useState<Record<string, ChatMessage[]>>({});
+  const [chatError, setChatError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const cursorTimeoutRef = useRef<number | null>(null);
@@ -129,6 +145,7 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
       setCursors({});
       setLocks({});
       setPipelineStatus({ status: 'idle' });
+      setChatMessagesByTab({});
     };
 
     socket.onmessage = (event) => {
@@ -226,6 +243,27 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
         options?.onVisualizationChanged?.(message.payload);
       } else if (message.type === 'project.permission_changed') {
         options?.onProjectPermissionChanged?.(message.payload);
+      } else if (message.type === 'chat.history') {
+        setChatMessagesByTab((prev) => ({
+          ...prev,
+          [message.payload.tab]: message.payload.messages,
+        }));
+      } else if (message.type === 'chat.message') {
+        setChatMessagesByTab((prev) => {
+          const tab = message!.payload.tab;
+          const current = prev[tab] || [];
+          if (current.some((entry) => entry.id === message!.payload.id)) {
+            return prev;
+          }
+          const next = [...current, message!.payload];
+          const trimmed = next.length > 200 ? next.slice(next.length - 200) : next;
+          return {
+            ...prev,
+            [tab]: trimmed,
+          };
+        });
+      } else if (message.type === 'chat.error') {
+        setChatError(message.payload.message || 'Unable to send chat message.');
       }
     };
 
@@ -332,6 +370,18 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
     }));
   };
 
+  const sendChatMessage = (tab: string, text: string) => {
+    if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return false;
+    const nextText = text.trim();
+    if (!nextText) return false;
+    setChatError(null);
+    socketRef.current.send(JSON.stringify({
+      type: 'chat.message',
+      payload: { tab, text: nextText },
+    }));
+    return true;
+  };
+
   return {
     onlineUsers,
     otherUsers,
@@ -339,6 +389,8 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
     userTabs,
     locks,
     pipelineStatus,
+    chatMessagesByTab,
+    chatError,
     isConnected,
     userId,
     requestLock,
@@ -347,5 +399,6 @@ export const useProjectPresence = (projectId: string | null, options?: UseProjec
     sendEdgeUpdate,
     sendPipelineExecute,
     sendPipelineStatus,
+    sendChatMessage,
   };
 };
