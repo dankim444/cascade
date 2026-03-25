@@ -799,6 +799,54 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }
   };
 
+  const persistPipelineName = useCallback(async (pipelineId: string, nextName: string) => {
+    if (!pipelineId) return;
+    const trimmed = nextName.trim();
+    if (!trimmed) return;
+
+    try {
+      await pipelineAPI.save({
+        id: pipelineId,
+        name: trimmed,
+        projectId,
+        flowNodes,
+        flowEdges,
+        datasets,
+      });
+      setPipelines((prev) => prev.map((p) => (
+        p.id === pipelineId
+          ? { ...p, name: trimmed, updatedAt: new Date().toISOString() }
+          : p
+      )));
+    } catch (error) {
+      console.error('Failed to rename pipeline:', error);
+      alert('Failed to rename pipeline. Please try again.');
+    }
+  }, [datasets, flowEdges, flowNodes, projectId]);
+
+  const commitCurrentPipelineName = useCallback(async () => {
+    const trimmed = currentPipelineName.trim() || 'Untitled Pipeline';
+    if (trimmed !== currentPipelineName) {
+      setCurrentPipelineName(trimmed);
+    }
+    if (!currentPipelineId) return;
+    const existing = pipelines.find((p) => p.id === currentPipelineId);
+    if (existing?.name === trimmed) return;
+    await persistPipelineName(currentPipelineId, trimmed);
+  }, [currentPipelineId, currentPipelineName, persistPipelineName, pipelines]);
+
+  const handleRenamePipelineFromList = useCallback(async (pipelineId: string, currentName: string) => {
+    const proposed = prompt('Rename pipeline', currentName);
+    if (proposed === null) return;
+    const trimmed = proposed.trim();
+    if (!trimmed || trimmed === currentName) return;
+
+    if (currentPipelineId === pipelineId) {
+      setCurrentPipelineName(trimmed);
+    }
+    await persistPipelineName(pipelineId, trimmed);
+  }, [currentPipelineId, persistPipelineName]);
+
   const handleCreateNewPipeline = () => {
     if (!newPipelineName.trim()) return;
     
@@ -1153,10 +1201,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                       type="text"
                       value={currentPipelineName}
                       onChange={(e) => setCurrentPipelineName(e.target.value)}
-                      onBlur={() => setEditingPipelineName(false)}
+                      onBlur={async () => {
+                        setEditingPipelineName(false);
+                        await commitCurrentPipelineName();
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') setEditingPipelineName(false);
-                        if (e.key === 'Escape') setEditingPipelineName(false);
+                        if (e.key === 'Enter') {
+                          setEditingPipelineName(false);
+                          void commitCurrentPipelineName();
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingPipelineName(false);
+                        }
                       }}
                       className="bg-transparent border-none text-sm font-medium text-gray-900 focus:outline-none w-40"
                       autoFocus
@@ -1211,6 +1267,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                 Updated {new Date(pipeline.updatedAt).toLocaleDateString()}
                               </div>
                             </div>
+                            {canEdit && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRenamePipelineFromList(pipeline.id, pipeline.name);
+                                }}
+                                className="ml-2 p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                title="Rename pipeline"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             {canEdit && (
                               <button
                                 onClick={(e) => {
@@ -1645,15 +1713,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                             <FileText className="h-5 w-5 text-indigo-600" />
                           </div>
                           {canEdit && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeletePipeline(pipeline.id, pipeline.name);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRenamePipelineFromList(pipeline.id, pipeline.name);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
+                                title="Rename pipeline"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePipeline(pipeline.id, pipeline.name);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
                         </div>
                         <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">
