@@ -199,21 +199,21 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
               {datasets.map((dataset) => (
                 <div
                   key={dataset.dataKey}
-                  className={`rounded-lg border transition-colors ${
+                  className={`group rounded-lg border transition-colors ${
                     selectedDataKey === dataset.dataKey
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      ? 'border-indigo-500 bg-white'
+                      : 'border-gray-200 bg-white hover:border-indigo-300'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <button
                       onClick={() => handleDatasetSelect(dataset.dataKey)}
                       disabled={!canEdit}
-                      className={`flex-1 text-left px-4 py-3 ${
+                      className={`flex-1 text-left px-4 py-3 transition-colors ${
                         !canEdit ? 'opacity-60 cursor-not-allowed' : ''
                       }`}
                     >
-                      <div className="font-medium">
+                      <div className={`font-medium ${selectedDataKey === dataset.dataKey ? 'text-indigo-700' : 'text-gray-900'}`}>
                         {dataset.name || dataset.dataKey.replace('data_', '')}
                       </div>
                       <div className="text-sm text-gray-500">
@@ -225,7 +225,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
                         type="button"
                         onClick={() => handleRenameDataset(dataset.id, dataset.name)}
                         disabled={renamingDatasetId === dataset.id}
-                        className="m-2 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                        className="m-2 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
                         title="Rename dataset"
                       >
                         <Edit2 className="w-4 h-4" />

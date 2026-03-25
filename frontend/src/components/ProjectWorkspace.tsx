@@ -1149,7 +1149,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             {canManageShares && (
               <button
                 onClick={openShareModal}
-                className="flex items-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-medium"
+                className="flex items-center space-x-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium"
               >
                 <Share2 className="h-4 w-4" />
                 <span className="text-sm">Share</span>
@@ -1433,7 +1433,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                         return !prev;
                       });
                     }}
-                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
+                    className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
                   >
                     <Plus className="h-4 w-4" />
                     <span className="text-sm font-medium">Add Node</span>
@@ -1623,8 +1623,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
-                      <Database className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                      <Database className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{datasets.length}</p>
@@ -1649,8 +1649,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100">
-                      <BarChart3 className="h-6 w-6 text-emerald-600" />
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                      <BarChart3 className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{savedGraphs.length}</p>
@@ -1752,13 +1752,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div className="mb-10">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-3">
-                    <BarChart3 className="h-5 w-5 text-emerald-600" />
+                    <BarChart3 className="h-5 w-5 text-indigo-600" />
                     <span>Visualizations</span>
                   </h2>
                   {canEdit && (
                     <button
                       onClick={() => setActiveTab('visualizations')}
-                      className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all shadow-sm text-sm font-medium"
+                      className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm font-medium"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create Visualization</span>
@@ -1780,7 +1780,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {canEdit && (
                       <button
                         onClick={() => setActiveTab('visualizations')}
-                        className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-sm font-medium"
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm font-medium"
                       >
                         Create Your First Visualization
                       </button>
@@ -1792,14 +1792,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                       <div
                         key={graph.id}
                         onClick={() => setActiveTab('visualizations')}
-                        className="group bg-white rounded-xl border border-gray-200 hover:border-emerald-300 p-5 cursor-pointer transition-all hover:shadow-lg"
+                        className="group bg-white rounded-xl border border-gray-200 hover:border-indigo-300 p-5 cursor-pointer transition-all hover:shadow-lg"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100">
-                            <BarChart3 className="h-5 w-5 text-emerald-600" />
+                          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100">
+                            <BarChart3 className="h-5 w-5 text-indigo-600" />
                           </div>
                         </div>
-                        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">
+                        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">
                           {graph.name}
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -1815,13 +1815,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-3">
-                    <Database className="h-5 w-5 text-blue-600" />
+                    <Database className="h-5 w-5 text-indigo-600" />
                     <span>Datasets</span>
                   </h2>
                   {canEdit && (
                     <button
                       onClick={() => setShowUpload(true)}
-                      className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm text-sm font-medium"
+                      className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm font-medium"
                     >
                       <Upload className="h-4 w-4" />
                       <span>Upload Dataset</span>
@@ -1843,7 +1843,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {canEdit && (
                       <button
                         onClick={() => setShowUpload(true)}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm font-medium"
                       >
                         Upload Your First Dataset
                       </button>
@@ -1857,10 +1857,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                         className="group bg-white rounded-xl border border-gray-200 hover:border-blue-300 p-5 transition-all"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100">
-                            <Database className="h-5 w-5 text-blue-600" />
+                          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100">
+                            <Database className="h-5 w-5 text-indigo-600" />
                           </div>
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             {canEdit && (
                               <button
                                 type="button"
@@ -1877,10 +1877,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                               onClick={() => handleDownloadDataset(dataset.id, dataset.name)}
                               disabled={downloadingDatasetId === dataset.id}
                               title="Download from storage (opens S3)"
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
                             >
                               {downloadingDatasetId === dataset.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent" />
                               ) : (
                                 <Download className="h-4 w-4" />
                               )}
@@ -1894,10 +1894,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                   }
                                 }}
                                 disabled={deletingDatasetId === dataset.id}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
                               >
                                 {deletingDatasetId === dataset.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>
                                 ) : (
                                   <Trash2 className="h-4 w-4" />
                                 )}

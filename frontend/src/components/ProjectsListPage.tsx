@@ -309,8 +309,8 @@ export const ProjectsListPage: React.FC = () => {
                 key={project.id}
                 className={`group bg-white rounded-2xl border hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col ${
                   project.isOwner === false 
-                    ? 'border-purple-200 hover:border-purple-300' 
-                    : 'border-gray-200 hover:border-blue-300'
+                    ? 'border-indigo-200 hover:border-indigo-300' 
+                    : 'border-gray-200 hover:border-indigo-300'
                 }`}
               >
                 <div 
@@ -320,13 +320,13 @@ export const ProjectsListPage: React.FC = () => {
                   <div className="flex items-start justify-between mb-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${
                       project.isOwner === false
-                        ? 'bg-purple-50 border-purple-100'
-                        : 'bg-blue-50 border-blue-100'
+                        ? 'bg-indigo-50 border-indigo-100'
+                        : 'bg-indigo-50 border-indigo-100'
                     }`}>
                       {project.isOwner === false ? (
-                        <Users className="h-6 w-6 text-purple-600" />
+                        <Users className="h-6 w-6 text-indigo-600" />
                       ) : (
-                        <FolderOpen className="h-6 w-6 text-blue-600" />
+                        <FolderOpen className="h-6 w-6 text-indigo-600" />
                       )}
                     </div>
                     <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -337,7 +337,7 @@ export const ProjectsListPage: React.FC = () => {
                               e.stopPropagation();
                               openShareModal(project);
                             }}
-                            className="p-2 text-gray-200 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                            className="p-2 text-gray-200 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors"
                             title="Share project"
                           >
                             <Share2 className="h-4 w-4" />
@@ -347,7 +347,7 @@ export const ProjectsListPage: React.FC = () => {
                               e.stopPropagation();
                               openEditModal(project);
                             }}
-                            className="p-2 text-gray-200 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 text-gray-200 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors"
                             title="Edit project"
                           >
                             <Edit2 className="h-4 w-4" />
@@ -358,11 +358,11 @@ export const ProjectsListPage: React.FC = () => {
                               handleDeleteProject(project.id, project.name);
                             }}
                             disabled={deletingId === project.id}
-                            className="p-2 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            className="p-2 text-gray-200 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors disabled:opacity-50"
                             title="Delete project"
                           >
                             {deletingId === project.id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>
                             ) : (
                               <Trash2 className="h-4 w-4" />
                             )}
@@ -374,18 +374,18 @@ export const ProjectsListPage: React.FC = () => {
                   
                   <h3 className={`text-lg font-semibold mb-1 transition-colors ${
                     project.isOwner === false
-                      ? 'text-gray-900 group-hover:text-purple-600'
-                      : 'text-gray-900 group-hover:text-blue-600'
+                      ? 'text-gray-900 group-hover:text-indigo-600'
+                      : 'text-gray-900 group-hover:text-indigo-600'
                   }`}>
                     {project.name}
                   </h3>
                   
                   {/* Shared indicator */}
                   {project.isOwner === false && (
-                    <div className="flex items-center space-x-1.5 text-xs text-purple-600 mb-2">
+                    <div className="flex items-center space-x-1.5 text-xs text-indigo-600 mb-2">
                       <Users className="h-3.5 w-3.5" />
                       <span>Shared by {project.ownerEmail}</span>
-                      <span className="px-1.5 py-0.5 bg-purple-100 rounded text-purple-700 capitalize">
+                      <span className="px-1.5 py-0.5 bg-indigo-100 rounded text-indigo-700 capitalize">
                         {project.permission}
                       </span>
                     </div>
@@ -420,8 +420,8 @@ export const ProjectsListPage: React.FC = () => {
                       </div>
                       <ChevronRight className={`h-5 w-5 transition-all ${
                         project.isOwner === false
-                          ? 'text-gray-400 group-hover:text-purple-600 group-hover:translate-x-1'
-                          : 'text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1'
+                          ? 'text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1'
+                          : 'text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-1'
                       }`} />
                     </div>
                   </div>
@@ -546,7 +546,7 @@ export const ProjectsListPage: React.FC = () => {
                       setShareError('');
                     }}
                     placeholder="colleague@example.com"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
                   />
                 </div>
                 
@@ -561,7 +561,7 @@ export const ProjectsListPage: React.FC = () => {
                         onClick={() => setSharePermission(perm)}
                         className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                           sharePermission === perm
-                            ? 'bg-purple-600 text-white'
+                            ? 'bg-indigo-600 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
@@ -587,7 +587,7 @@ export const ProjectsListPage: React.FC = () => {
                 <button
                   onClick={handleShareProject}
                   disabled={!shareEmail.trim() || isSharing}
-                  className="w-full px-4 py-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center space-x-2"
+                  className="w-full px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center space-x-2"
                 >
                   {isSharing ? (
                     <>
@@ -611,7 +611,7 @@ export const ProjectsListPage: React.FC = () => {
                 
                 {loadingShares ? (
                   <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-indigo-600 border-t-transparent"></div>
                   </div>
                 ) : projectShares.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">
@@ -625,8 +625,8 @@ export const ProjectsListPage: React.FC = () => {
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-purple-600" />
+                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-indigo-600" />
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">
@@ -641,7 +641,7 @@ export const ProjectsListPage: React.FC = () => {
                                   e.target.value as 'view' | 'edit' | 'admin'
                                 )}
                                 disabled={!canManageShares || updatingShareId === share.id}
-                                className="text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/50 disabled:opacity-60"
+                                className="text-xs text-gray-700 bg-white border border-gray-200 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-60"
                               >
                                 <option value="view">View only</option>
                                 <option value="edit">Can edit</option>
