@@ -15,7 +15,7 @@ import { useWorkflowStore } from '../store/useWorkflowStore';
 import { useProjectPresence } from '../hooks/useProjectPresence';
 import { projectAPI } from '../services/projectAPI';
 import { graphAPI } from '../services/graphAPI';
-import { datasetAPI, pipelineAPI } from '../services/api';
+import { datasetAPI, pipelineAPI, formatPipelineValidationError } from '../services/api';
 import type { Node as FlowNode } from 'reactflow';
 import { MarkerType } from 'reactflow';
 import type { ProjectDetails, ProjectShare } from '../types';
@@ -87,6 +87,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
   const [currentPipelineName, setCurrentPipelineName] = useState<string>('Untitled Pipeline');
   const [isSaving, setIsSaving] = useState(false);
+  const [pipelineValidationErrors, setPipelineValidationErrors] = useState<
+    { nodeId: string; message: string }[]
+  >([]);
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
   const [savedGraphs, setSavedGraphs] = useState<SavedGraphInfo[]>([]);
   const [showPipelineManager, setShowPipelineManager] = useState(false);
@@ -534,39 +537,76 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   }, [datasets, getNodeResult]);
 
   const stripLockMeta = useCallback((node: FlowNode) => {
-    const { lockedBy, ...restData } = node.data as any;
+    const { lockedBy, validationError, ...restData } = node.data as any;
     return { ...node, data: restData };
   }, []);
 
-  const handleUpdateNode = useCallback((nodeId: string, updates: any) => {
-    if (isPipelineExecuting) {
-      alert('Pipeline is running. Please wait until execution completes.');
-      return;
-    }
-    const lock = locks[nodeId];
-    if (lock && lock.userId !== userId) {
-      alert(`"${lock.fullName}" is editing this node right now.`);
-      return;
-    }
-    if (!lock && userId) {
-      requestLock(nodeId);
-    }
-    updateFlowNode(nodeId, updates);
-    const existing = flowNodesRef.current.find((node) => node.id === nodeId);
-    if (existing) {
-      const updatedNode = {
-        ...existing,
-        data: { ...existing.data, ...updates },
-      };
-      sendNodeUpdate({
-        nodeId,
-        node: stripLockMeta(updatedNode),
-        timestamp: Date.now(),
-      });
-    }
-    setSelectedFlowNode(null);
-    setSelectedNode(null);
-  }, [isPipelineExecuting, locks, requestLock, sendNodeUpdate, stripLockMeta, updateFlowNode, setSelectedNode, userId]);
+  const handleUpdateNode = useCallback(
+    async (nodeId: string, updates: any) => {
+      if (isPipelineExecuting) {
+        alert('Pipeline is running. Please wait until execution completes.');
+        throw new Error('Pipeline running');
+      }
+      const lock = locks[nodeId];
+      if (lock && lock.userId !== userId) {
+        alert(`"${lock.fullName}" is editing this node right now.`);
+        throw new Error('Locked');
+      }
+      if (!lock && userId) {
+        requestLock(nodeId);
+      }
+
+      const base = flowNodesRef.current.find((n) => n.id === nodeId);
+      if (!base) {
+        return;
+      }
+      const merged = { ...base, data: { ...base.data, ...updates } };
+
+      if (currentPipelineId) {
+        try {
+          await pipelineAPI.commitNode(
+            currentPipelineId,
+            nodeId,
+            stripLockMeta(merged) as Record<string, unknown>,
+          );
+          setPipelineValidationErrors([]);
+          updateFlowNode(nodeId, updates);
+          sendNodeUpdate({
+            nodeId,
+            node: stripLockMeta(merged),
+            timestamp: Date.now(),
+          });
+        } catch (e: any) {
+          const detail = e.response?.data?.detail;
+          if (detail?.errors && Array.isArray(detail.errors)) {
+            setPipelineValidationErrors(detail.errors);
+          }
+          alert(formatPipelineValidationError(detail));
+          throw e;
+        }
+      } else {
+        updateFlowNode(nodeId, updates);
+        sendNodeUpdate({
+          nodeId,
+          node: stripLockMeta(merged),
+          timestamp: Date.now(),
+        });
+      }
+      setSelectedFlowNode(null);
+      setSelectedNode(null);
+    },
+    [
+      isPipelineExecuting,
+      locks,
+      requestLock,
+      sendNodeUpdate,
+      stripLockMeta,
+      updateFlowNode,
+      setSelectedNode,
+      userId,
+      currentPipelineId,
+    ],
+  );
 
   const handleNodesChange = useCallback((nodes: FlowNode[]) => {
     if (isPipelineExecuting) {
@@ -620,6 +660,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     });
   }, [isPipelineExecuting, normalizeEdges, sendEdgeUpdate, setFlowEdges]);
 
+  const validationErrorByNodeId = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const e of pipelineValidationErrors) {
+      if (e.nodeId) m[e.nodeId] = e.message;
+    }
+    return m;
+  }, [pipelineValidationErrors]);
+
   const displayNodes = useMemo(() => {
     return flowNodes.map((node) => {
       const lock = locks[node.id];
@@ -631,14 +679,24 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         data: {
           ...node.data,
           lockedBy: lockedByOther ? lock.fullName : undefined,
+          validationError: validationErrorByNodeId[node.id],
         },
       };
     });
-  }, [flowNodes, locks, userId, isPipelineExecuting]);
+  }, [flowNodes, locks, userId, isPipelineExecuting, validationErrorByNodeId]);
 
   const handleExecutePipeline = async () => {
     if (!canExecutePipeline) {
       alert('Only admins can execute pipelines in this project.');
+      return;
+    }
+    if (pipelineValidationErrors.length > 0) {
+      alert(
+        formatPipelineValidationError({
+          message: 'Fix pipeline validation errors before running.',
+          errors: pipelineValidationErrors,
+        }),
+      );
       return;
     }
     if (isPipelineExecuting) {
@@ -683,6 +741,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const handleExecuteFromNode = async (nodeId: string) => {
     if (!canExecutePipeline) {
       alert('Only admins can execute pipelines in this project.');
+      return;
+    }
+    if (pipelineValidationErrors.length > 0) {
+      alert(
+        formatPipelineValidationError({
+          message: 'Fix pipeline validation errors before running.',
+          errors: pipelineValidationErrors,
+        }),
+      );
       return;
     }
     if (isPipelineExecuting) {
@@ -763,9 +830,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       });
       
       localStorage.setItem(`cascade-pipeline-${projectId}`, JSON.stringify(pipeline));
+      setPipelineValidationErrors([]);
     } catch (error: any) {
       console.error('Failed to save pipeline:', error);
-      alert('Failed to save pipeline: ' + (error.message || 'Unknown error'));
+      const detail = error.response?.data?.detail;
+      if (detail?.errors && Array.isArray(detail.errors)) {
+        setPipelineValidationErrors(detail.errors);
+      }
+      alert(formatPipelineValidationError(detail) || error.message || 'Unknown error');
     } finally {
       setIsSaving(false);
     }
@@ -1465,7 +1537,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                 <button
                   onClick={handleSavePipeline}
                   className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={flowNodes.length === 0 || isSaving}
+                  disabled={flowNodes.length === 0 || isSaving || pipelineValidationErrors.length > 0}
                 >
                   {isSaving ? (
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -1809,6 +1881,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                   onExecuteFromNode={handleExecuteFromNode}
                   onDeleteNode={handleDeleteNode}
                   isReadOnly={isPipelineExecuting}
+                  pipelineActionsDisabled={pipelineValidationErrors.length > 0}
                 />
               )}
             </div>

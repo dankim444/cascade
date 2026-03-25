@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Node as FlowNode, Edge as FlowEdge } from 'reactflow';
 import type { DataConnection, Pipeline as PipelineType, Dataset } from '../types';
+import { formatPipelineValidationError } from '../services/api';
 
 // Store for node execution results
 interface NodeExecutionResult {
@@ -366,7 +367,8 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        const msg = formatPipelineValidationError(errorData.detail);
+        throw new Error(msg || `HTTP error! status: ${response.status}`);
       }
       
       const result = await response.json();

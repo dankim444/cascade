@@ -20,6 +20,7 @@ interface TransformNodeProps {
     status?: 'pending' | 'running' | 'success' | 'error';
     outputRows?: number;
     lockedBy?: string;
+    validationError?: string;
   };
   selected?: boolean;
 }
@@ -88,7 +89,11 @@ export const TransformNode: React.FC<TransformNodeProps> = ({ data, selected }) 
   return (
     <div
       className={`bg-white border-2 rounded-lg shadow-lg min-w-[200px] transition-all relative ${
-        selected ? 'border-blue-500 shadow-xl' : statusClass
+        data.validationError
+          ? 'border-red-500 ring-2 ring-red-200 shadow-red-100'
+          : selected
+            ? 'border-blue-500 shadow-xl'
+            : statusClass
       }`}
     >
       {data.lockedBy && (
@@ -158,6 +163,11 @@ export const TransformNode: React.FC<TransformNodeProps> = ({ data, selected }) 
         <div className="text-sm text-gray-700 mb-2">{data.label}</div>
         {data.lockedBy && (
           <div className="text-[11px] text-gray-500">Locked by {data.lockedBy}</div>
+        )}
+        {data.validationError && (
+          <div className="text-[11px] text-red-600 mt-1 line-clamp-3" title={data.validationError}>
+            {data.validationError}
+          </div>
         )}
         
         {/* Status indicator */}

@@ -20,11 +20,10 @@ git clone git@github.com:dankim444/cascade.git
 cd cascade
 npm run setup
 
-# If you haven't already, create a virtual environment in backend/ and initialize the database
+# Start a virtual environment in backend/ and initialize the database
 cd backend
-python -m venv venv
 source venv/bin/activate
-python init_db.py
+python init_db.py # do this only once
 cd ..
 
 # Start both frontend and backend

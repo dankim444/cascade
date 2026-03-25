@@ -19,6 +19,7 @@ interface MLNodeProps {
     config?: any;
     mlResults?: any; // ML training results
     lockedBy?: string;
+    validationError?: string;
   };
   selected?: boolean;
 }
@@ -72,7 +73,11 @@ export const MLNode: React.FC<MLNodeProps> = ({ data, selected }) => {
       className={`bg-white border-2 rounded-lg shadow-lg transition-all relative ${
         data.mlResults ? 'min-w-[240px]' : 'min-w-[200px]'
       } ${
-        selected ? 'border-blue-500 shadow-xl' : statusClass
+        data.validationError
+          ? 'border-red-500 ring-2 ring-red-200 shadow-red-100'
+          : selected
+            ? 'border-blue-500 shadow-xl'
+            : statusClass
       }`}
     >
       {data.lockedBy && (
@@ -110,6 +115,11 @@ export const MLNode: React.FC<MLNodeProps> = ({ data, selected }) => {
         <div className="text-sm text-gray-700 mb-2 font-medium">{data.label}</div>
         {data.lockedBy && (
           <div className="text-[11px] text-gray-500">Locked by {data.lockedBy}</div>
+        )}
+        {data.validationError && (
+          <div className="text-[11px] text-red-600 mt-1 line-clamp-3" title={data.validationError}>
+            {data.validationError}
+          </div>
         )}
         
         {/* ML configuration preview */}
