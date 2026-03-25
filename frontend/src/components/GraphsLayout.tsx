@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Edit2 } from 'lucide-react';
 import { FullGraphConfigPanel } from './FullGraphConfigPanel';
 import { GraphViewer } from './GraphViewer';
 import { graphAPI } from '../services/graphAPI';
+import { datasetAPI } from '../services/api';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import type { GraphConfig, GraphResponse, SavedGraph } from '../services/graphAPI';
 
@@ -19,12 +21,13 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
   liveRefreshToken,
 }) => {
   const canEdit = _canEdit ?? true;
-  const { datasets } = useWorkflowStore();
+  const { datasets, setDatasets } = useWorkflowStore();
   const [selectedDataKey, setSelectedDataKey] = useState<string>('');
   const [showGraphConfig, setShowGraphConfig] = useState(false);
   const [currentGraph, setCurrentGraph] = useState<GraphResponse | null>(null);
   const [savedGraphs, setSavedGraphs] = useState<SavedGraph[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [renamingDatasetId, setRenamingDatasetId] = useState<string | null>(null);
 
   // Datasets are now available directly from the Zustand store
   // No need for useEffect to load them
@@ -157,6 +160,23 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
     }
   };
 
+  const handleRenameDataset = async (datasetId: string, currentName: string) => {
+    if (!canEdit) return;
+    const nextNameRaw = prompt('Rename dataset', currentName);
+    if (nextNameRaw === null) return;
+    const nextName = nextNameRaw.trim();
+    if (!nextName || nextName === currentName) return;
+    try {
+      setRenamingDatasetId(datasetId);
+      const updated = await datasetAPI.rename(datasetId, nextName);
+      setDatasets(datasets.map((ds: any) => (ds.id === datasetId ? { ...ds, name: updated.name } : ds)));
+    } catch (error: any) {
+      alert(error?.message || 'Failed to rename dataset');
+    } finally {
+      setRenamingDatasetId(null);
+    }
+  };
+
   return (
     <div className="h-full flex bg-gray-50">
       {/* Left Panel - Dataset Selection and Saved Graphs */}
@@ -177,25 +197,42 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
           ) : (
             <div className="space-y-2">
               {datasets.map((dataset) => (
-                <button
+                <div
                   key={dataset.dataKey}
-                  onClick={() => handleDatasetSelect(dataset.dataKey)}
-                  disabled={!canEdit}
-                  className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
+                  className={`rounded-lg border transition-colors ${
                     selectedDataKey === dataset.dataKey
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                  } ${
-                    !canEdit ? 'opacity-60 cursor-not-allowed hover:border-gray-200 hover:bg-white' : ''
                   }`}
                 >
-                  <div className="font-medium">
-                    {dataset.name || dataset.dataKey.replace('data_', '')}
+                  <div className="flex items-start justify-between">
+                    <button
+                      onClick={() => handleDatasetSelect(dataset.dataKey)}
+                      disabled={!canEdit}
+                      className={`flex-1 text-left px-4 py-3 ${
+                        !canEdit ? 'opacity-60 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <div className="font-medium">
+                        {dataset.name || dataset.dataKey.replace('data_', '')}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {dataset.rowCount ? `${dataset.rowCount.toLocaleString()} rows` : 'Dataset'} • {dataset.columns?.length || 0} columns
+                      </div>
+                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleRenameDataset(dataset.id, dataset.name)}
+                        disabled={renamingDatasetId === dataset.id}
+                        className="m-2 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                        title="Rename dataset"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {dataset.rowCount ? `${dataset.rowCount.toLocaleString()} rows` : 'Dataset'} • {dataset.columns?.length || 0} columns
-                  </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

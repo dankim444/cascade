@@ -48,6 +48,10 @@ class DynamoDBImportRequest(BaseModel):
     dataset_name: Optional[str] = None
     project_id: Optional[str] = None
 
+
+class UpdateDatasetRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
 def _safe_csv_attachment_filename(name: str) -> str:
     base = re.sub(r"[^\w\-. ]+", "_", (name or "dataset").strip()) or "dataset"
     if not base.lower().endswith(".csv"):
@@ -553,6 +557,45 @@ async def get_dataset_preview(
     return {
         "data": preview_data,
         "totalRows": total_rows
+    }
+
+
+@router.patch("/{dataset_id}")
+async def update_dataset(
+    dataset_id: str,
+    body: UpdateDatasetRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update dataset metadata (currently supports renaming)."""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    can_edit = dataset.user_id == current_user.id
+    if not can_edit and dataset.project_id:
+        can_edit = user_can_edit_project(dataset.project_id, current_user.id, db)
+
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="You don't have permission to update this dataset")
+
+    next_name = body.name.strip()
+    if not next_name:
+        raise HTTPException(status_code=400, detail="Dataset name cannot be empty")
+
+    dataset.name = next_name
+    db.commit()
+    db.refresh(dataset)
+
+    return {
+        "id": dataset.id,
+        "name": dataset.name,
+        "columns": dataset.columns,
+        "rowCount": dataset.row_count,
+        "dataKey": dataset.data_key,
+        "projectId": dataset.project_id,
+        "uploadedAt": dataset.uploaded_at.isoformat(),
     }
 
 

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any
 from datetime import datetime
+import math
 import os
 from dotenv import load_dotenv
 from app.transformations.executor_fixed import TransformationExecutor
@@ -47,6 +48,30 @@ app.include_router(api_router, prefix="/api/v1")
 
 # Create data directory if it doesn't exist (for temporary files)
 os.makedirs("data", exist_ok=True)
+
+
+def _sanitize_non_finite_numbers(value: Any) -> Any:
+    """Convert NaN/Infinity to None so JSON encoding never fails."""
+    if isinstance(value, dict):
+        return {k: _sanitize_non_finite_numbers(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_non_finite_numbers(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_non_finite_numbers(item) for item in value]
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return None
+        return value
+    # Handle numpy scalar values without requiring numpy import here.
+    if hasattr(value, "item"):
+        try:
+            scalar = value.item()
+            if isinstance(scalar, float) and not math.isfinite(scalar):
+                return None
+            return scalar
+        except Exception:
+            return value
+    return value
 
 @app.get("/")
 async def root():
@@ -191,7 +216,7 @@ async def run_transformation(
                 import traceback
                 traceback.print_exc()
         
-        return result
+        return _sanitize_non_finite_numbers(result)
         
     except HTTPException:
         # Re-raise HTTP exceptions

@@ -82,6 +82,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [showDatasetManager, setShowDatasetManager] = useState(false);
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null);
   const [downloadingDatasetId, setDownloadingDatasetId] = useState<string | null>(null);
+  const [renamingDatasetId, setRenamingDatasetId] = useState<string | null>(null);
   const [showMLResults, setShowMLResults] = useState(false);
   const [mlResultsData, setMLResultsData] = useState<any>(null);
   const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
@@ -127,18 +128,19 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     if (!payload.node) {
       return;
     }
+    const incomingNode = payload.node;
 
     const previous = flowNodesRef.current;
     const existing = previous.find((node) => node.id === payload.nodeId);
     if (existing) {
       const nextNodes = previous.map((node) => (
         node.id === payload.nodeId
-          ? { ...node, ...payload.node, data: { ...node.data, ...payload.node.data } }
+          ? { ...node, ...incomingNode, data: { ...node.data, ...incomingNode.data } }
           : node
       ));
       setFlowNodes(nextNodes);
     } else {
-      setFlowNodes([...previous, payload.node]);
+      setFlowNodes([...previous, incomingNode]);
     }
   }, [deleteFlowNode, setFlowNodes]);
 
@@ -932,6 +934,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }
   };
 
+  const handleRenameDataset = async (datasetId: string, currentName: string) => {
+    if (!canEdit) return;
+    const nextNameRaw = prompt('Rename dataset', currentName);
+    if (nextNameRaw === null) return;
+    const nextName = nextNameRaw.trim();
+    if (!nextName || nextName === currentName) return;
+
+    try {
+      setRenamingDatasetId(datasetId);
+      const updated = await datasetAPI.rename(datasetId, nextName);
+      setDatasets(datasets.map((ds: any) => (ds.id === datasetId ? { ...ds, name: updated.name } : ds)));
+      setFlowNodes(flowNodes.map((node) => {
+        if (node.type !== 'dataNode') return node;
+        const dataKey = (node.data as any)?.dataKey;
+        if (dataKey !== updated.dataKey) return node;
+        return { ...node, data: { ...node.data, label: updated.name } };
+      }));
+      if (selectedFlowNode?.type === 'dataNode' && (selectedFlowNode.data as any)?.dataKey === updated.dataKey) {
+        setSelectedFlowNode({ ...selectedFlowNode, data: { ...selectedFlowNode.data, label: updated.name } });
+      }
+    } catch (error: any) {
+      alert('Failed to rename dataset: ' + (error.message || 'Unknown error'));
+    } finally {
+      setRenamingDatasetId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -1264,6 +1293,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                               </div>
                             </div>
                             <div className="flex items-center gap-0.5 ml-2 shrink-0">
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameDataset(ds.id, ds.name)}
+                                  disabled={renamingDatasetId === ds.id}
+                                  title="Rename dataset"
+                                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleDownloadDataset(ds.id, ds.name)}
@@ -1741,6 +1781,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                             <Database className="h-5 w-5 text-blue-600" />
                           </div>
                           <div className="flex items-center gap-0.5">
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleRenameDataset(dataset.id, dataset.name)}
+                                disabled={renamingDatasetId === dataset.id}
+                                title="Rename dataset"
+                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleDownloadDataset(dataset.id, dataset.name)}
@@ -1907,6 +1958,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
           pipelineName={currentPipelineName}
           onDatasetSaved={async () => {
             // Refresh datasets after saving
+            const projectDatasets = await datasetAPI.getAll(projectId);
+            const datasetsWithKeys = projectDatasets.map((ds: any) => ({
+              ...ds,
+              dataKey: ds.dataKey || `data_${ds.id}`,
+              preview: ds.preview || [],
+            }));
+            setDatasets(datasetsWithKeys);
+          }}
+          onDatasetRenamed={async () => {
             const projectDatasets = await datasetAPI.getAll(projectId);
             const datasetsWithKeys = projectDatasets.map((ds: any) => ({
               ...ds,
