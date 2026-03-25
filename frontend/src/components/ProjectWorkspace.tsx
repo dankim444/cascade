@@ -118,7 +118,16 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     flowEdgesRef.current = flowEdges;
   }, [flowEdges]);
 
-  const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node: FlowNode; timestamp: number }) => {
+  const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node?: FlowNode; deleted?: boolean; timestamp: number }) => {
+    if (payload.deleted) {
+      deleteFlowNode(payload.nodeId);
+      return;
+    }
+
+    if (!payload.node) {
+      return;
+    }
+
     const previous = flowNodesRef.current;
     const existing = previous.find((node) => node.id === payload.nodeId);
     if (existing) {
@@ -131,7 +140,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     } else {
       setFlowNodes([...previous, payload.node]);
     }
-  }, [setFlowNodes]);
+  }, [deleteFlowNode, setFlowNodes]);
 
   const normalizeEdges = useCallback((edges: any[]) => {
     return edges.map((edge) => ({
@@ -538,6 +547,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     return { ...node, data: restData };
   }, []);
 
+  const broadcastNodeDeletion = useCallback((nodeId: string) => {
+    sendNodeUpdate({
+      nodeId,
+      deleted: true,
+      timestamp: Date.now(),
+    });
+  }, [sendNodeUpdate]);
+
   const handleUpdateNode = useCallback((nodeId: string, updates: any) => {
     if (isPipelineExecuting) {
       alert('Pipeline is running. Please wait until execution completes.');
@@ -584,6 +601,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       return node;
     });
 
+    const removedNodeIds = previous
+      .filter((prevNode) => !nextNodes.some((node) => node.id === prevNode.id))
+      .map((node) => node.id);
+
+    removedNodeIds.forEach((nodeId) => {
+      broadcastNodeDeletion(nodeId);
+    });
+
     nextNodes.forEach((node) => {
       const prevNode = previous.find((prev) => prev.id === node.id);
       const lock = locks[node.id];
@@ -606,7 +631,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     });
 
     setFlowNodes(nextNodes);
-  }, [isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
+  }, [broadcastNodeDeletion, isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
 
   const handleEdgesChange = useCallback((edges: any[]) => {
     if (isPipelineExecuting) {
@@ -735,7 +760,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       return;
     }
     deleteFlowNode(nodeId);
-  }, [deleteFlowNode, isPipelineExecuting, locks, userId]);
+    broadcastNodeDeletion(nodeId);
+  }, [broadcastNodeDeletion, deleteFlowNode, isPipelineExecuting, locks, userId]);
 
   const handleSavePipeline = async () => {
     try {
@@ -877,7 +903,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         const nodesToRemove = flowNodes.filter(
           node => node.type === 'dataNode' && node.data.dataKey === dataset.dataKey
         );
-        nodesToRemove.forEach(node => deleteFlowNode(node.id));
+        nodesToRemove.forEach(node => handleDeleteNode(node.id));
       }
       
       setShowDatasetManager(false);

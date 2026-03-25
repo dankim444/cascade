@@ -31,7 +31,8 @@ type PipelineStatus = {
 
 type NodeUpdatePayload = {
   nodeId: string;
-  node: any;
+  node?: any;
+  deleted?: boolean;
   timestamp: number;
 };
 
