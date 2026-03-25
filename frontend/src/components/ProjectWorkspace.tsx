@@ -1719,7 +1719,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                   e.stopPropagation();
                                   void handleRenamePipelineFromList(pipeline.id, pipeline.name);
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
                                 title="Rename pipeline"
                               >
                                 <Edit2 className="h-4 w-4" />
@@ -1729,7 +1729,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                   e.stopPropagation();
                                   handleDeletePipeline(pipeline.id, pipeline.name);
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -1867,7 +1867,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                 onClick={() => handleRenameDataset(dataset.id, dataset.name)}
                                 disabled={renamingDatasetId === dataset.id}
                                 title="Rename dataset"
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </button>
@@ -1877,7 +1877,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                               onClick={() => handleDownloadDataset(dataset.id, dataset.name)}
                               disabled={downloadingDatasetId === dataset.id}
                               title="Download from storage (opens S3)"
-                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                              className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
                             >
                               {downloadingDatasetId === dataset.id ? (
                                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent" />
@@ -1894,7 +1894,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                   }
                                 }}
                                 disabled={deletingDatasetId === dataset.id}
-                                className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-50"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
                               >
                                 {deletingDatasetId === dataset.id ? (
                                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>

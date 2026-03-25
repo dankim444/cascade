@@ -169,9 +169,10 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
     try {
       setRenamingDatasetId(datasetId);
       const updated = await datasetAPI.rename(datasetId, nextName);
-      setDatasets(datasets.map((ds: any) => (ds.id === datasetId ? { ...ds, name: updated.name } : ds)));
-    } catch (error: any) {
-      alert(error?.message || 'Failed to rename dataset');
+      setDatasets(datasets.map((ds) => (ds.id === datasetId ? { ...ds, name: updated.name } : ds)));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to rename dataset';
+      alert(message);
     } finally {
       setRenamingDatasetId(null);
     }
@@ -225,7 +226,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
                         type="button"
                         onClick={() => handleRenameDataset(dataset.id, dataset.name)}
                         disabled={renamingDatasetId === dataset.id}
-                        className="m-2 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                        className="m-2 p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
                         title="Rename dataset"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -256,7 +257,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
               {savedGraphs.map((graph) => (
                 <div
                   key={graph.id}
-                  className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+                  className="group p-4 border border-gray-200 rounded-lg hover:border-indigo-300 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -270,10 +271,10 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
                         {new Date(graph.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex space-x-1 ml-2">
+                    <div className="flex space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleLoadSavedGraph(graph)}
-                        className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                        className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
                         title="Load graph"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -283,7 +284,7 @@ export const GraphsLayout: React.FC<GraphsLayoutProps> = ({
                       </button>
                       <button
                         onClick={() => handleDeleteSavedGraph(graph.id)}
-                        className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                        className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
                         title="Delete graph"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
