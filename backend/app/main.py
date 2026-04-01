@@ -7,7 +7,6 @@ _backend_root = Path(__file__).resolve().parent.parent
 load_dotenv(_backend_root / ".env")
 
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any
@@ -25,6 +24,7 @@ from app.api.routes.presence import router as presence_router
 from app.api.routes.datasets import router as datasets_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes import router as api_router
+from app.middleware.permissive_cors import PermissiveCORSMiddleware
 
 app = FastAPI(
     title="Cascade API",
@@ -32,15 +32,8 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS: allow any origin. allow_credentials must be False when using "*"
-# (browser + Starlette forbid credentials with wildcard). Bearer tokens in headers still work.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: echo Origin, handle OPTIONS, Private-Network preflight (e.g. localhost → EC2)
+app.add_middleware(PermissiveCORSMiddleware)
 
 # Include routers
 app.include_router(auth_router)
