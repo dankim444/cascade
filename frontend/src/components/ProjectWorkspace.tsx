@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Upload, Plus, Save, Database, Trash2, X, Download,
-  GitBranch, BarChart3, Layers, ChevronDown, Edit2, FileText, Share2, Users, User, Info
+  GitBranch, BarChart3, Layers, ChevronDown, ChevronRight, Edit2, FileText, Share2, Users, User, Info, MessageSquare
 } from 'lucide-react';
 import { PipelineCanvasWithProvider } from './PipelineCanvas';
 import { NodeConfigPanel } from './NodeConfigPanel';
@@ -82,6 +82,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [showDatasetManager, setShowDatasetManager] = useState(false);
   const [deletingDatasetId, setDeletingDatasetId] = useState<string | null>(null);
   const [downloadingDatasetId, setDownloadingDatasetId] = useState<string | null>(null);
+  const [renamingDatasetId, setRenamingDatasetId] = useState<string | null>(null);
   const [showMLResults, setShowMLResults] = useState(false);
   const [mlResultsData, setMLResultsData] = useState<any>(null);
   const [currentPipelineId, setCurrentPipelineId] = useState<string | null>(null);
@@ -92,6 +93,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   >([]);
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([]);
   const [savedGraphs, setSavedGraphs] = useState<SavedGraphInfo[]>([]);
+  const [requestedVisualizationId, setRequestedVisualizationId] = useState<string | null>(null);
+  const [visualizationOpenNonce, setVisualizationOpenNonce] = useState(0);
   const [showPipelineManager, setShowPipelineManager] = useState(false);
   const [showNewPipelineModal, setShowNewPipelineModal] = useState(false);
   const [newPipelineName, setNewPipelineName] = useState('');
@@ -108,10 +111,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [loadingShares, setLoadingShares] = useState(false);
   const [visualizationChangeTick, setVisualizationChangeTick] = useState(0);
   const [permissionChangeTick, setPermissionChangeTick] = useState(0);
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [unreadCountsByTab, setUnreadCountsByTab] = useState<Record<string, number>>({});
 
   const flowNodesRef = useRef(flowNodes);
   const flowEdgesRef = useRef(flowEdges);
   const currentLockNodeIdRef = useRef<string | null>(null);
+  const chatListRef = useRef<HTMLDivElement | null>(null);
+  const seenChatCountByTabRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     flowNodesRef.current = flowNodes;
@@ -121,20 +129,30 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     flowEdgesRef.current = flowEdges;
   }, [flowEdges]);
 
-  const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node: FlowNode; timestamp: number }) => {
+  const handleRemoteNodeUpdate = useCallback((payload: { nodeId: string; node?: FlowNode; deleted?: boolean; timestamp: number }) => {
+    if (payload.deleted) {
+      deleteFlowNode(payload.nodeId);
+      return;
+    }
+
+    if (!payload.node) {
+      return;
+    }
+    const incomingNode = payload.node;
+
     const previous = flowNodesRef.current;
     const existing = previous.find((node) => node.id === payload.nodeId);
     if (existing) {
       const nextNodes = previous.map((node) => (
         node.id === payload.nodeId
-          ? { ...node, ...payload.node, data: { ...node.data, ...payload.node.data } }
+          ? { ...node, ...incomingNode, data: { ...node.data, ...incomingNode.data } }
           : node
       ));
       setFlowNodes(nextNodes);
     } else {
-      setFlowNodes([...previous, payload.node]);
+      setFlowNodes([...previous, incomingNode]);
     }
-  }, [setFlowNodes]);
+  }, [deleteFlowNode, setFlowNodes]);
 
   const normalizeEdges = useCallback((edges: any[]) => {
     return edges.map((edge) => ({
@@ -156,6 +174,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     userTabs,
     locks,
     pipelineStatus,
+    chatMessagesByTab,
+    chatError,
     userId,
     requestLock,
     releaseLock,
@@ -163,6 +183,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     sendEdgeUpdate,
     sendPipelineExecute,
     sendPipelineStatus,
+    sendChatMessage,
   } = useProjectPresence(projectId, {
     activeTab,
     onNodeUpdate: handleRemoteNodeUpdate,
@@ -181,6 +202,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const visibleCursors = Object.values(cursors).filter((cursor) => (
     userTabs[cursor.userId] === activeTab
   ));
+  const currentTabChatMessages = chatMessagesByTab[activeTab] || [];
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -188,6 +210,9 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   // Permission helpers
   const canEdit = project?.isOwner !== false || project?.permission === 'edit' || project?.permission === 'admin';
   const canManageShares = project?.isOwner !== false || project?.permission === 'admin';
+  const canSendChat = canEdit;
+  const totalUnreadCount = Object.values(unreadCountsByTab).reduce((sum, count) => sum + count, 0);
+  const activeTabLabel = activeTab.charAt(0).toUpperCase() + activeTab.slice(1);
 
   const syncSavedGraphs = useCallback(async () => {
     const graphs = await graphAPI.getSavedGraphs(projectId);
@@ -199,6 +224,12 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     }));
     setSavedGraphs(graphInfos);
   }, [projectId]);
+
+  const handleOpenVisualizationFromOverview = useCallback((graphId: string) => {
+    setRequestedVisualizationId(graphId);
+    setVisualizationOpenNonce((prev) => prev + 1);
+    setActiveTab('visualizations');
+  }, []);
 
   // Load project data
   useEffect(() => {
@@ -290,6 +321,61 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
 
     refreshProjectPermissions();
   }, [permissionChangeTick, projectId]);
+
+  useEffect(() => {
+    const messages = currentTabChatMessages;
+    const previousCount = seenChatCountByTabRef.current[activeTab];
+    if (previousCount === undefined) {
+      seenChatCountByTabRef.current[activeTab] = messages.length;
+      return;
+    }
+    if (messages.length <= previousCount) {
+      seenChatCountByTabRef.current[activeTab] = messages.length;
+      return;
+    }
+
+    const newMessages = messages.slice(previousCount);
+    const unseenIncomingCount = newMessages.filter((message) => (
+      message.kind === 'system' || message.senderUserId !== userId
+    )).length;
+
+    if (isChatCollapsed && unseenIncomingCount > 0) {
+      setUnreadCountsByTab((prev) => ({
+        ...prev,
+        [activeTab]: (prev[activeTab] || 0) + unseenIncomingCount,
+      }));
+    }
+
+    seenChatCountByTabRef.current[activeTab] = messages.length;
+  }, [activeTab, currentTabChatMessages, isChatCollapsed, userId]);
+
+  useEffect(() => {
+    if (!isChatCollapsed) {
+      setUnreadCountsByTab((prev) => {
+        if (!prev[activeTab]) return prev;
+        return { ...prev, [activeTab]: 0 };
+      });
+    }
+  }, [activeTab, isChatCollapsed]);
+
+  useEffect(() => {
+    if (isChatCollapsed) return;
+    if (!chatListRef.current) return;
+    chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+  }, [currentTabChatMessages, isChatCollapsed]);
+
+  useEffect(() => {
+    if (!chatError) return;
+    alert(chatError);
+  }, [chatError]);
+
+  const handleSendChat = useCallback(() => {
+    const nextText = chatInput.trim();
+    if (!nextText || !canSendChat) return;
+    const didSend = sendChatMessage(activeTab, nextText);
+    if (!didSend) return;
+    setChatInput('');
+  }, [activeTab, canSendChat, chatInput, sendChatMessage]);
 
   // Sharing functions
   const openShareModal = async () => {
@@ -541,6 +627,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     return { ...node, data: restData };
   }, []);
 
+  const broadcastNodeDeletion = useCallback((nodeId: string) => {
+    sendNodeUpdate({
+      nodeId,
+      deleted: true,
+      timestamp: Date.now(),
+    });
+  }, [sendNodeUpdate]);
+
   const handleUpdateNode = useCallback(
     async (nodeId: string, updates: any) => {
       if (isPipelineExecuting) {
@@ -624,6 +718,14 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       return node;
     });
 
+    const removedNodeIds = previous
+      .filter((prevNode) => !nextNodes.some((node) => node.id === prevNode.id))
+      .map((node) => node.id);
+
+    removedNodeIds.forEach((nodeId) => {
+      broadcastNodeDeletion(nodeId);
+    });
+
     nextNodes.forEach((node) => {
       const prevNode = previous.find((prev) => prev.id === node.id);
       const lock = locks[node.id];
@@ -646,7 +748,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
     });
 
     setFlowNodes(nextNodes);
-  }, [isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
+  }, [broadcastNodeDeletion, isPipelineExecuting, locks, sendNodeUpdate, setFlowNodes, stripLockMeta, userId]);
 
   const handleEdgesChange = useCallback((edges: any[]) => {
     if (isPipelineExecuting) {
@@ -802,7 +904,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       return;
     }
     deleteFlowNode(nodeId);
-  }, [deleteFlowNode, isPipelineExecuting, locks, userId]);
+    broadcastNodeDeletion(nodeId);
+  }, [broadcastNodeDeletion, deleteFlowNode, isPipelineExecuting, locks, userId]);
 
   const handleSavePipeline = async () => {
     try {
@@ -842,6 +945,54 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       setIsSaving(false);
     }
   };
+
+  const persistPipelineName = useCallback(async (pipelineId: string, nextName: string) => {
+    if (!pipelineId) return;
+    const trimmed = nextName.trim();
+    if (!trimmed) return;
+
+    try {
+      await pipelineAPI.save({
+        id: pipelineId,
+        name: trimmed,
+        projectId,
+        flowNodes,
+        flowEdges,
+        datasets,
+      });
+      setPipelines((prev) => prev.map((p) => (
+        p.id === pipelineId
+          ? { ...p, name: trimmed, updatedAt: new Date().toISOString() }
+          : p
+      )));
+    } catch (error) {
+      console.error('Failed to rename pipeline:', error);
+      alert('Failed to rename pipeline. Please try again.');
+    }
+  }, [datasets, flowEdges, flowNodes, projectId]);
+
+  const commitCurrentPipelineName = useCallback(async () => {
+    const trimmed = currentPipelineName.trim() || 'Untitled Pipeline';
+    if (trimmed !== currentPipelineName) {
+      setCurrentPipelineName(trimmed);
+    }
+    if (!currentPipelineId) return;
+    const existing = pipelines.find((p) => p.id === currentPipelineId);
+    if (existing?.name === trimmed) return;
+    await persistPipelineName(currentPipelineId, trimmed);
+  }, [currentPipelineId, currentPipelineName, persistPipelineName, pipelines]);
+
+  const handleRenamePipelineFromList = useCallback(async (pipelineId: string, currentName: string) => {
+    const proposed = prompt('Rename pipeline', currentName);
+    if (proposed === null) return;
+    const trimmed = proposed.trim();
+    if (!trimmed || trimmed === currentName) return;
+
+    if (currentPipelineId === pipelineId) {
+      setCurrentPipelineName(trimmed);
+    }
+    await persistPipelineName(pipelineId, trimmed);
+  }, [currentPipelineId, persistPipelineName]);
 
   const handleCreateNewPipeline = () => {
     if (!newPipelineName.trim()) return;
@@ -949,7 +1100,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
         const nodesToRemove = flowNodes.filter(
           node => node.type === 'dataNode' && node.data.dataKey === dataset.dataKey
         );
-        nodesToRemove.forEach(node => deleteFlowNode(node.id));
+        nodesToRemove.forEach(node => handleDeleteNode(node.id));
       }
       
       setShowDatasetManager(false);
@@ -975,6 +1126,33 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       alert('Failed to download dataset: ' + msg);
     } finally {
       setDownloadingDatasetId(null);
+    }
+  };
+
+  const handleRenameDataset = async (datasetId: string, currentName: string) => {
+    if (!canEdit) return;
+    const nextNameRaw = prompt('Rename dataset', currentName);
+    if (nextNameRaw === null) return;
+    const nextName = nextNameRaw.trim();
+    if (!nextName || nextName === currentName) return;
+
+    try {
+      setRenamingDatasetId(datasetId);
+      const updated = await datasetAPI.rename(datasetId, nextName);
+      setDatasets(datasets.map((ds: any) => (ds.id === datasetId ? { ...ds, name: updated.name } : ds)));
+      setFlowNodes(flowNodes.map((node) => {
+        if (node.type !== 'dataNode') return node;
+        const dataKey = (node.data as any)?.dataKey;
+        if (dataKey !== updated.dataKey) return node;
+        return { ...node, data: { ...node.data, label: updated.name } };
+      }));
+      if (selectedFlowNode?.type === 'dataNode' && (selectedFlowNode.data as any)?.dataKey === updated.dataKey) {
+        setSelectedFlowNode({ ...selectedFlowNode, data: { ...selectedFlowNode.data, label: updated.name } });
+      }
+    } catch (error: any) {
+      alert('Failed to rename dataset: ' + (error.message || 'Unknown error'));
+    } finally {
+      setRenamingDatasetId(null);
     }
   };
 
@@ -1118,7 +1296,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             {canManageShares && (
               <button
                 onClick={openShareModal}
-                className="flex items-center space-x-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all font-medium"
+                className="flex items-center space-x-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-medium"
               >
                 <Share2 className="h-4 w-4" />
                 <span className="text-sm">Share</span>
@@ -1170,10 +1348,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                       type="text"
                       value={currentPipelineName}
                       onChange={(e) => setCurrentPipelineName(e.target.value)}
-                      onBlur={() => setEditingPipelineName(false)}
+                      onBlur={async () => {
+                        setEditingPipelineName(false);
+                        await commitCurrentPipelineName();
+                      }}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') setEditingPipelineName(false);
-                        if (e.key === 'Escape') setEditingPipelineName(false);
+                        if (e.key === 'Enter') {
+                          setEditingPipelineName(false);
+                          void commitCurrentPipelineName();
+                        }
+                        if (e.key === 'Escape') {
+                          setEditingPipelineName(false);
+                        }
                       }}
                       className="bg-transparent border-none text-sm font-medium text-gray-900 focus:outline-none w-40"
                       autoFocus
@@ -1228,6 +1414,18 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                 Updated {new Date(pipeline.updatedAt).toLocaleDateString()}
                               </div>
                             </div>
+                            {canEdit && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRenamePipelineFromList(pipeline.id, pipeline.name);
+                                }}
+                                className="ml-2 p-1.5 text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-colors opacity-0 group-hover:opacity-100"
+                                title="Rename pipeline"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                             {canEdit && (
                               <button
                                 onClick={(e) => {
@@ -1310,6 +1508,17 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                               </div>
                             </div>
                             <div className="flex items-center gap-0.5 ml-2 shrink-0">
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRenameDataset(ds.id, ds.name)}
+                                  disabled={renamingDatasetId === ds.id}
+                                  title="Rename dataset"
+                                  className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors disabled:opacity-50"
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleDownloadDataset(ds.id, ds.name)}
@@ -1371,7 +1580,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                         return !prev;
                       });
                     }}
-                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all"
+                    className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all"
                   >
                     <Plus className="h-4 w-4" />
                     <span className="text-sm font-medium">Add Node</span>
@@ -1561,8 +1770,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
-                      <Database className="h-6 w-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                      <Database className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{datasets.length}</p>
@@ -1587,8 +1796,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                 </div>
                 <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center border border-emerald-100">
-                      <BarChart3 className="h-6 w-6 text-emerald-600" />
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center border border-indigo-100">
+                      <BarChart3 className="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
                       <p className="text-3xl font-bold text-gray-900">{savedGraphs.length}</p>
@@ -1651,15 +1860,27 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                             <FileText className="h-5 w-5 text-indigo-600" />
                           </div>
                           {canEdit && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeletePipeline(pipeline.id, pipeline.name);
-                              }}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRenamePipelineFromList(pipeline.id, pipeline.name);
+                                }}
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
+                                title="Rename pipeline"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeletePipeline(pipeline.id, pipeline.name);
+                                }}
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
                         </div>
                         <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">
@@ -1678,13 +1899,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div className="mb-10">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-3">
-                    <BarChart3 className="h-5 w-5 text-emerald-600" />
+                    <BarChart3 className="h-5 w-5 text-indigo-600" />
                     <span>Visualizations</span>
                   </h2>
                   {canEdit && (
                     <button
                       onClick={() => setActiveTab('visualizations')}
-                      className="flex items-center space-x-2 px-4 py-2.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-all shadow-sm text-sm font-medium"
+                      className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm font-medium"
                     >
                       <Plus className="h-4 w-4" />
                       <span>Create Visualization</span>
@@ -1706,7 +1927,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {canEdit && (
                       <button
                         onClick={() => setActiveTab('visualizations')}
-                        className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all shadow-sm font-medium"
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm font-medium"
                       >
                         Create Your First Visualization
                       </button>
@@ -1717,15 +1938,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {savedGraphs.map((graph) => (
                       <div
                         key={graph.id}
-                        onClick={() => setActiveTab('visualizations')}
-                        className="group bg-white rounded-xl border border-gray-200 hover:border-emerald-300 p-5 cursor-pointer transition-all hover:shadow-lg"
+                        onClick={() => handleOpenVisualizationFromOverview(graph.id)}
+                        className="group bg-white rounded-xl border border-gray-200 hover:border-indigo-300 p-5 cursor-pointer transition-all hover:shadow-lg"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="w-10 h-10 bg-emerald-50 rounded-lg flex items-center justify-center border border-emerald-100">
-                            <BarChart3 className="h-5 w-5 text-emerald-600" />
+                          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100">
+                            <BarChart3 className="h-5 w-5 text-indigo-600" />
                           </div>
                         </div>
-                        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-emerald-600 transition-colors">
+                        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors">
                           {graph.name}
                         </h3>
                         <p className="text-xs text-gray-500">
@@ -1741,13 +1962,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold text-gray-900 flex items-center space-x-3">
-                    <Database className="h-5 w-5 text-blue-600" />
+                    <Database className="h-5 w-5 text-indigo-600" />
                     <span>Datasets</span>
                   </h2>
                   {canEdit && (
                     <button
                       onClick={() => setShowUpload(true)}
-                      className="flex items-center space-x-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm text-sm font-medium"
+                      className="flex items-center space-x-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm text-sm font-medium"
                     >
                       <Upload className="h-4 w-4" />
                       <span>Upload Dataset</span>
@@ -1769,7 +1990,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                     {canEdit && (
                       <button
                         onClick={() => setShowUpload(true)}
-                        className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
+                        className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm font-medium"
                       >
                         Upload Your First Dataset
                       </button>
@@ -1783,19 +2004,30 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                         className="group bg-white rounded-xl border border-gray-200 hover:border-blue-300 p-5 transition-all"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center border border-blue-100">
-                            <Database className="h-5 w-5 text-blue-600" />
+                          <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center border border-indigo-100">
+                            <Database className="h-5 w-5 text-indigo-600" />
                           </div>
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleRenameDataset(dataset.id, dataset.name)}
+                                disabled={renamingDatasetId === dataset.id}
+                                title="Rename dataset"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleDownloadDataset(dataset.id, dataset.name)}
                               disabled={downloadingDatasetId === dataset.id}
                               title="Download from storage (opens S3)"
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+                              className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
                             >
                               {downloadingDatasetId === dataset.id ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent" />
                               ) : (
                                 <Download className="h-4 w-4" />
                               )}
@@ -1809,10 +2041,10 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                                   }
                                 }}
                                 disabled={deletingDatasetId === dataset.id}
-                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                                className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 hover:text-indigo-700 hover:bg-indigo-100 rounded transition-colors disabled:opacity-50"
                               >
                                 {deletingDatasetId === dataset.id ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-red-500 border-t-transparent"></div>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-indigo-500 border-t-transparent"></div>
                                 ) : (
                                   <Trash2 className="h-4 w-4" />
                                 )}
@@ -1917,9 +2149,106 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
             onGraphSaved={refreshSavedGraphs}
             canEdit={canEdit}
             liveRefreshToken={visualizationChangeTick}
+            openSavedGraphId={requestedVisualizationId}
+            openSavedGraphNonce={visualizationOpenNonce}
+            onOpenSavedGraphHandled={() => setRequestedVisualizationId(null)}
           />
         )}
       </main>
+
+      {/* Live Chat Drawer */}
+      <div className="fixed right-0 top-24 bottom-4 z-40 flex items-start pointer-events-none">
+        <div className="pointer-events-auto flex h-full items-start">
+          <button
+            type="button"
+            onClick={() => setIsChatCollapsed((prev) => !prev)}
+            className="mt-4 -mr-1 inline-flex items-center gap-2 rounded-l-lg border border-r-0 border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            title={isChatCollapsed ? 'Open chat' : 'Collapse chat'}
+          >
+            <MessageSquare className="h-4 w-4 text-indigo-600" />
+            {isChatCollapsed ? 'Chat' : 'Collapse'}
+            {totalUnreadCount > 0 && (
+              <span className="inline-flex min-w-[1.2rem] items-center justify-center rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold text-white">
+                {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+              </span>
+            )}
+            <ChevronRight className={`h-4 w-4 transition-transform ${isChatCollapsed ? '' : 'rotate-180'}`} />
+          </button>
+
+          {!isChatCollapsed && (
+            <div className="mt-4 mr-4 flex h-[calc(100vh-7.5rem)] w-96 flex-col rounded-2xl border border-gray-200 bg-white shadow-xl">
+              <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Live Chat</h3>
+                  <p className="text-xs text-gray-500">{activeTabLabel} tab only</p>
+                </div>
+                {!canSendChat && (
+                  <span className="rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 border border-amber-200">
+                    Read only
+                  </span>
+                )}
+              </div>
+
+              <div ref={chatListRef} className="flex-1 space-y-2 overflow-y-auto px-4 py-3 bg-gray-50">
+                {currentTabChatMessages.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-center text-xs text-gray-500">
+                    No messages yet. Chat is scoped to collaborators in this tab.
+                  </div>
+                ) : (
+                  currentTabChatMessages.map((message) => (
+                    message.kind === 'system' ? (
+                      <div key={message.id} className="text-center text-xs text-gray-500">
+                        {message.text}
+                      </div>
+                    ) : (
+                      <div key={message.id} className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
+                        message.senderUserId === userId
+                          ? 'ml-auto bg-indigo-600 text-white'
+                          : 'bg-white border border-gray-200 text-gray-800'
+                      }`}>
+                        {message.senderUserId !== userId && (
+                          <div className="mb-1 text-xs font-semibold text-indigo-600">{message.senderName || 'User'}</div>
+                        )}
+                        <div>{message.text}</div>
+                        <div className={`mt-1 text-[11px] ${message.senderUserId === userId ? 'text-indigo-100' : 'text-gray-400'}`}>
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    )
+                  ))
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 p-3">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendChat();
+                      }
+                    }}
+                    disabled={!canSendChat}
+                    rows={2}
+                    placeholder={canSendChat ? `Message people in ${activeTabLabel}...` : 'View-only users cannot send messages'}
+                    className="min-h-[2.75rem] max-h-28 flex-1 resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendChat}
+                    disabled={!canSendChat || !chatInput.trim()}
+                    className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Upload Modal */}
       {showUpload && (
@@ -1954,6 +2283,15 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
           pipelineName={currentPipelineName}
           onDatasetSaved={async () => {
             // Refresh datasets after saving
+            const projectDatasets = await datasetAPI.getAll(projectId);
+            const datasetsWithKeys = projectDatasets.map((ds: any) => ({
+              ...ds,
+              dataKey: ds.dataKey || `data_${ds.id}`,
+              preview: ds.preview || [],
+            }));
+            setDatasets(datasetsWithKeys);
+          }}
+          onDatasetRenamed={async () => {
             const projectDatasets = await datasetAPI.getAll(projectId);
             const datasetsWithKeys = projectDatasets.map((ds: any) => ({
               ...ds,

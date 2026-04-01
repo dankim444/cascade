@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, AlertCircle, Table, Download, Save } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Table, Download, Save, Edit2 } from 'lucide-react';
 import { datasetAPI } from '../services/api';
 
 interface ResultsViewerProps {
@@ -9,6 +9,7 @@ interface ResultsViewerProps {
   pipelineId?: string;
   pipelineName?: string;
   onDatasetSaved?: () => void;
+  onDatasetRenamed?: () => void;
 }
 
 export const ResultsViewer: React.FC<ResultsViewerProps> = ({
@@ -18,12 +19,15 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
   pipelineId,
   pipelineName,
   onDatasetSaved,
+  onDatasetRenamed,
 }) => {
   const isSuccess = result.status === 'success';
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedDatasetName, setSavedDatasetName] = useState<string | null>(result.outputDataset?.name || null);
   const [savedDatasetId, setSavedDatasetId] = useState<string | null>(result.outputDataset?.id ?? null);
+  const [renameDatasetName, setRenameDatasetName] = useState<string>(result.outputDataset?.name || '');
+  const [isRenamingDataset, setIsRenamingDataset] = useState(false);
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
 
   // Extract data from result
@@ -117,6 +121,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
         });
         setSavedDatasetName(dataset.name);
         setSavedDatasetId(dataset.id);
+        setRenameDatasetName(dataset.name);
         onDatasetSaved?.();
         alert(`Dataset saved successfully: ${dataset.name}`);
         return;
@@ -149,6 +154,7 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
       const dataset = await datasetAPI.upload(csvFile, projectId);
       setSavedDatasetName(dataset.name);
       setSavedDatasetId(dataset.id);
+      setRenameDatasetName(dataset.name);
       onDatasetSaved?.();
       alert(
         `Dataset saved (preview rows only — ${outputData.length} rows). Run the pipeline again and save immediately if you need the full result.`
@@ -158,6 +164,27 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
       setSaveError(error.message || 'Failed to save dataset');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRenameSavedDataset = async () => {
+    if (!savedDatasetId) return;
+    const nextName = renameDatasetName.trim();
+    if (!nextName) {
+      setSaveError('Dataset name cannot be empty');
+      return;
+    }
+    setSaveError(null);
+    setIsRenamingDataset(true);
+    try {
+      const updated = await datasetAPI.rename(savedDatasetId, nextName);
+      setSavedDatasetName(updated.name);
+      setRenameDatasetName(updated.name);
+      onDatasetRenamed?.();
+    } catch (error: any) {
+      setSaveError(error.message || 'Failed to rename dataset');
+    } finally {
+      setIsRenamingDataset(false);
     }
   };
 
@@ -289,6 +316,26 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
                 )}
               </div>
             </div>
+
+            {savedDatasetId && (
+              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={renameDatasetName}
+                  onChange={(e) => setRenameDatasetName(e.target.value)}
+                  className="flex-1 max-w-sm px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  placeholder="Dataset name"
+                />
+                <button
+                  onClick={handleRenameSavedDataset}
+                  disabled={isRenamingDataset || renameDatasetName.trim().length === 0}
+                  className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isRenamingDataset ? 'Saving...' : 'Rename output'}
+                </button>
+              </div>
+            )}
 
             {outputData.length > 0 && (
               <div className="px-6 py-1.5 bg-slate-50 border-b border-slate-200">

@@ -130,6 +130,11 @@ export const datasetAPI = {
     return response.data;
   },
 
+  rename: async (id: string, name: string): Promise<Dataset> => {
+    const response = await api.patch(`/api/datasets/${id}`, { name });
+    return response.data;
+  },
+
   createFromExecutionOutput: async (payload: {
     outputDataKey: string;
     projectId: string;

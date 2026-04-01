@@ -48,6 +48,10 @@ class DynamoDBImportRequest(BaseModel):
     dataset_name: Optional[str] = None
     project_id: Optional[str] = None
 
+
+class UpdateDatasetRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+
 def _safe_csv_attachment_filename(name: str) -> str:
     base = re.sub(r"[^\w\-. ]+", "_", (name or "dataset").strip()) or "dataset"
     if not base.lower().endswith(".csv"):
@@ -556,6 +560,45 @@ async def get_dataset_preview(
     }
 
 
+@router.patch("/{dataset_id}")
+async def update_dataset(
+    dataset_id: str,
+    body: UpdateDatasetRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update dataset metadata (currently supports renaming)."""
+    dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
+
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    can_edit = dataset.user_id == current_user.id
+    if not can_edit and dataset.project_id:
+        can_edit = user_can_edit_project(dataset.project_id, current_user.id, db)
+
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="You don't have permission to update this dataset")
+
+    next_name = body.name.strip()
+    if not next_name:
+        raise HTTPException(status_code=400, detail="Dataset name cannot be empty")
+
+    dataset.name = next_name
+    db.commit()
+    db.refresh(dataset)
+
+    return {
+        "id": dataset.id,
+        "name": dataset.name,
+        "columns": dataset.columns,
+        "rowCount": dataset.row_count,
+        "dataKey": dataset.data_key,
+        "projectId": dataset.project_id,
+        "uploadedAt": dataset.uploaded_at.isoformat(),
+    }
+
+
 @router.get("/{dataset_id}/download")
 async def get_dataset_download_presigned_url(
     dataset_id: str,
@@ -606,9 +649,9 @@ async def delete_dataset(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete a dataset and its files from S3, and any pipelines that reference it"""
-    from app.models.pipeline import Pipeline
-    import json
+    """Delete a dataset + associated visualizations (saved graphs), but keep pipelines intact."""
+    from app.models.saved_graph import SavedGraph
+    from app.api.routes.presence import presence_manager
     
     dataset = db.query(Dataset).filter(Dataset.id == dataset_id).first()
     
@@ -624,52 +667,13 @@ async def delete_dataset(
         raise HTTPException(status_code=403, detail="You don't have permission to delete this dataset")
     
     try:
-        # Find and delete pipelines that reference this dataset
-        user_pipelines = db.query(Pipeline).filter(
-            Pipeline.user_id == current_user.id
+        # Delete saved visualizations associated with this dataset (match by data_key).
+        associated_graphs = db.query(SavedGraph).filter(
+            SavedGraph.data_key == dataset.data_key
         ).all()
-        
-        deleted_pipelines = []
-        for pipeline in user_pipelines:
-            if not pipeline.definition:
-                continue
-            
-            # Check if pipeline references this dataset
-            # Pipelines can reference datasets by:
-            # 1. In the datasets array (by ID)
-            # 2. In flowNodes (dataNode with dataKey matching dataset's dataKey)
-            definition = pipeline.definition if isinstance(pipeline.definition, dict) else json.loads(pipeline.definition) if isinstance(pipeline.definition, str) else {}
-            
-            references_dataset = False
-            
-            # Check datasets array
-            if 'datasets' in definition:
-                for ds in definition.get('datasets', []):
-                    if isinstance(ds, dict) and ds.get('id') == dataset_id:
-                        references_dataset = True
-                        break
-                    elif isinstance(ds, str) and ds == dataset_id:
-                        references_dataset = True
-                        break
-            
-            # Check flowNodes for dataKey references
-            if not references_dataset and 'flowNodes' in definition:
-                for node in definition.get('flowNodes', []):
-                    if isinstance(node, dict):
-                        # Check if it's a dataNode with matching dataKey
-                        if (node.get('type') == 'dataNode' and 
-                            node.get('data', {}).get('dataKey') == dataset.data_key):
-                            references_dataset = True
-                            break
-                        # Also check if node data contains the dataset ID
-                        node_data = node.get('data', {})
-                        if node_data.get('datasetId') == dataset_id:
-                            references_dataset = True
-                            break
-            
-            if references_dataset:
-                db.delete(pipeline)
-                deleted_pipelines.append(pipeline.id)
+        deleted_graph_ids = [graph.id for graph in associated_graphs]
+        for graph in associated_graphs:
+            db.delete(graph)
         
         # Delete files from S3
         if dataset.s3_csv_path:
@@ -680,12 +684,21 @@ async def delete_dataset(
         # Delete dataset record from database
         db.delete(dataset)
         db.commit()
+
+        # Broadcast visualization deletions to collaborators after commit.
+        if dataset.project_id and deleted_graph_ids:
+            for graph_id in deleted_graph_ids:
+                await presence_manager.broadcast_visualization_changed(
+                    dataset.project_id,
+                    "deleted",
+                    graph_id,
+                )
         
         return {
             "message": "Dataset deleted successfully",
             "id": dataset_id,
-            "deletedPipelines": deleted_pipelines,
-            "pipelinesDeleted": len(deleted_pipelines)
+            "deletedVisualizations": deleted_graph_ids,
+            "visualizationsDeleted": len(deleted_graph_ids)
         }
     except Exception as e:
         db.rollback()

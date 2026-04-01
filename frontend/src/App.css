@@ -180,7 +180,7 @@
   cursor: pointer;
 }
 
-button {
+.transform-node button {
   padding: 6px 12px;
   background: #3b82f6;
   color: white;
@@ -191,6 +191,6 @@ button {
   transition: background-color 0.2s;
 }
 
-button:hover {
+.transform-node button:hover {
   background: #2563eb;
 }
