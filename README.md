@@ -26,21 +26,9 @@ source venv/bin/activate
 python init_db.py # do this only once
 cd ..
 
-# Start both frontend and backend
-npm start
+# Start backend
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
+
+# Start frontend
+cd frontend && npm run dev
 ```
-
-**Or use the startup script:**
-
-```bash
-# On macOS/Linux
-./start.sh
-
-# On Windows
-start.bat
-```
-
-## 📚 Documentation
-
-- **PIPELINE_GUIDE.md** - Complete guide to the visual pipeline system
-- **USER_GUIDE.md** - Step-by-step guide with examples (legacy simple mode)
