@@ -1,3 +1,11 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env before any import that reads DATABASE_URL (app.core.database).
+_backend_root = Path(__file__).resolve().parent.parent
+load_dotenv(_backend_root / ".env")
+
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,7 +14,6 @@ from typing import Dict, Any
 from datetime import datetime
 import math
 import os
-from dotenv import load_dotenv
 from app.transformations.executor_fixed import TransformationExecutor
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -18,9 +25,6 @@ from app.api.routes.presence import router as presence_router
 from app.api.routes.datasets import router as datasets_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes import router as api_router
-
-# Load environment variables from .env file
-load_dotenv()
 
 app = FastAPI(
     title="Cascade API",
