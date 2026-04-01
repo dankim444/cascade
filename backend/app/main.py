@@ -32,11 +32,12 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware to allow frontend connections
+# CORS: allow any origin. allow_credentials must be False when using "*"
+# (browser + Starlette forbid credentials with wildcard). Bearer tokens in headers still work.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

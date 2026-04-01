@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Node as FlowNode, Edge as FlowEdge } from 'reactflow';
 import type { DataConnection, Pipeline as PipelineType, Dataset } from '../types';
+import { API_BASE_URL } from '../config/apiBase';
 
 // Store for node execution results
 interface NodeExecutionResult {
@@ -369,7 +370,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch('http://localhost:8000/api/transformations/run', {
+      const response = await fetch(`${API_BASE_URL}/api/transformations/run`, {
         method: 'POST',
         headers,
         body: JSON.stringify(pipeline),

@@ -18,6 +18,7 @@ interface Dataset {
 }
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import { datasetAPI } from '../services/api';
+import { API_BASE_URL } from '../config/apiBase';
 import { CSVPreview } from './CSVPreview';
 
 interface DataUploadProps {
@@ -291,7 +292,7 @@ export const DataUpload: React.FC<DataUploadProps> = ({ projectId, onUploadCompl
               value={dynamoForm.endpointUrl}
               onChange={handleDynamoChange}
               className="w-full border rounded-md px-3 py-2 text-sm"
-              placeholder="http://localhost:8000"
+              placeholder={API_BASE_URL}
             />
           </div>
           <div className="space-y-1">

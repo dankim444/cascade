@@ -2,6 +2,8 @@
  * Graph API service for interacting with the backend graph endpoints
  */
 
+import { API_BASE_URL } from '../config/apiBase';
+
 export interface GraphConfig {
   graph_type: string;
   x_column?: string;
@@ -76,7 +78,7 @@ export interface SaveGraphRequest {
   project_id?: string;
 }
 
-const API_BASE = 'http://localhost:8000/api/v1/graphs';
+const API_BASE = `${API_BASE_URL}/api/v1/graphs`;
 
 // Helper function to get auth headers
 function getAuthHeaders(): HeadersInit {
@@ -155,9 +157,9 @@ export const graphAPI = {
 
   // Saved graphs API
   async getSavedGraphs(projectId?: string): Promise<SavedGraph[]> {
-    const url = projectId 
-      ? `http://localhost:8000/api/v1/saved-graphs?project_id=${projectId}`
-      : 'http://localhost:8000/api/v1/saved-graphs';
+    const url = projectId
+      ? `${API_BASE_URL}/api/v1/saved-graphs?project_id=${projectId}`
+      : `${API_BASE_URL}/api/v1/saved-graphs`;
     const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
@@ -168,7 +170,7 @@ export const graphAPI = {
   },
 
   async saveGraph(request: SaveGraphRequest): Promise<{id: string, message: string}> {
-    const response = await fetch('http://localhost:8000/api/v1/saved-graphs', {
+    const response = await fetch(`${API_BASE_URL}/api/v1/saved-graphs`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),
@@ -183,7 +185,7 @@ export const graphAPI = {
   },
 
   async deleteSavedGraph(graphId: string): Promise<{message: string}> {
-    const response = await fetch(`http://localhost:8000/api/v1/saved-graphs/${graphId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/saved-graphs/${graphId}`, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     });
@@ -204,7 +206,7 @@ export const graphAPI = {
   },
 
   async updateSavedGraph(graphId: string, request: SaveGraphRequest): Promise<{message: string}> {
-    const response = await fetch(`http://localhost:8000/api/v1/saved-graphs/${graphId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/saved-graphs/${graphId}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),

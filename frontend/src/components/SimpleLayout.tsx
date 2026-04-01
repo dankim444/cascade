@@ -6,6 +6,7 @@ import { DataUpload } from './DataUpload';
 import { ResultsViewer } from './ResultsViewer';
 import { useWorkflowStore } from '../store/useWorkflowStore';
 import type { TransformOperation } from '../types';
+import { API_BASE_URL } from '../config/apiBase';
 
 export const SimpleLayout: React.FC = () => {
   const [showUpload, setShowUpload] = useState(false);
@@ -52,7 +53,7 @@ export const SimpleLayout: React.FC = () => {
 
       console.log('Sending request:', requestBody);
 
-      const response = await fetch('http://localhost:8000/api/transformations/run', {
+      const response = await fetch(`${API_BASE_URL}/api/transformations/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
