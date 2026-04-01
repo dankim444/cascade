@@ -1,8 +1,6 @@
-# Cascade - Collaborative Data Platform MVP
+# Cascade - Collaborative No-Code Data Analytics Platform
 
 Senior Design Group 34
-
-## Quick Start
 
 ### Prerequisites
 
@@ -10,9 +8,7 @@ Senior Design Group 34
 - Node.js 18+
 - npm
 
-### Setup
-
-**Run both frontend and backend at once**
+### Setup (do this once)
 
 ```bash
 # Clone and setup everything
@@ -25,7 +21,10 @@ cd backend
 source venv/bin/activate
 python init_db.py # do this only once
 cd ..
+```
 
+### Start instructions
+```bash
 # Start backend
 cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
 
