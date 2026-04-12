@@ -106,24 +106,25 @@ export const GraphViewer: React.FC<GraphViewerProps> = ({ graph, onClose, embedd
             console.log('Post-render check - container has children:', plotRef.current?.children?.length || 0);
           }, 100);
           
-        } catch (error) {
-          console.error('Error loading Plotly or rendering plot:', error);
-          console.error('Error stack:', error.stack);
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          console.error('Error loading Plotly or rendering plot:', err);
+          console.error('Error stack:', err.stack);
           // Fallback display
           if (plotRef.current) {
             plotRef.current.innerHTML = `
               <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 400px; background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 8px;">
                 <div style="text-align: center; color: #6b7280;">
                   <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 600;">Graph Generated!</h3>
-                  <p style="margin: 0 0 16px 0; font-size: 14px;">Error loading visualization: ${error.message}</p>
+                  <p style="margin: 0 0 16px 0; font-size: 14px;">Error loading visualization: ${err.message}</p>
                   <p style="margin: 16px 0 0 0; font-size: 12px; color: #9ca3af;">
                     Graph type: ${graph.config?.graph_type} | Theme: ${graph.config?.theme}
                   </p>
                   <details style="margin-top: 16px; text-align: left; max-width: 400px;">
                     <summary style="cursor: pointer; color: #6b7280;">Debug Info</summary>
                     <pre style="font-size: 10px; background: #f3f4f6; padding: 8px; border-radius: 4px; overflow: auto; max-height: 200px;">
-Error: ${error.message}
-Stack: ${error.stack}
+Error: ${err.message}
+Stack: ${err.stack ?? ''}
 Graph JSON: ${graph.graph_json?.substring(0, 500)}...
                     </pre>
                   </details>

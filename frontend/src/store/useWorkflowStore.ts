@@ -12,6 +12,7 @@ interface NodeExecutionResult {
   outputSchema?: any[];
   error?: string;
   timestamp?: Date;
+  ml_results?: unknown;
 }
 
 interface WorkflowState {

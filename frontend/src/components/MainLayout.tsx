@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { PipelineLayout } from './PipelineLayout';
-import { GraphsLayout } from './GraphsLayout';
 import { CascadeMark } from './CascadeLogo';
 
 type Tab = 'pipeline' | 'visualizations';

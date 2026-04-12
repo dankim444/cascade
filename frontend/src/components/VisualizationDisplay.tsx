@@ -189,12 +189,14 @@ export const VisualizationDisplay: React.FC<VisualizationDisplayProps> = ({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={(entry) => `${entry.name}: ${entry.value}`}
+                label={(entry: { name: string; value: number }) =>
+                  `${entry.name}: ${entry.value}`
+                }
                 outerRadius={150}
                 fill={COLORS[0]}
                 dataKey="value"
               >
-                {chartData.slice(0, 10).map((entry, index) => (
+                {chartData.slice(0, 10).map((_entry: unknown, index: number) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

@@ -74,6 +74,8 @@ export interface DataConnection {
   lastAccessed: Date;
 }
 
+export type ChartType = 'scatter' | 'line' | 'bar' | 'area' | 'pie';
+
 // Dataset for uploads
 export interface Dataset {
   id: string;
@@ -84,6 +86,8 @@ export interface Dataset {
   dataKey: string; // Key to reference in Data storage
   projectId?: string;
   uploadedAt?: string;
+  /** Optional display name from some upload flows */
+  filename?: string;
 }
 
 export interface Pipeline {

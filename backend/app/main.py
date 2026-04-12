@@ -3,8 +3,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load .env before any import that reads DATABASE_URL (app.core.database).
+# override=True: backend/.env should win over a stale DATABASE_URL from the shell/IDE.
 _backend_root = Path(__file__).resolve().parent.parent
-load_dotenv(_backend_root / ".env")
+load_dotenv(_backend_root / ".env", override=True)
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse

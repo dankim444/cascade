@@ -143,13 +143,6 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
       );
       const csv = [headers, ...rows].join('\n');
       const csvBlob = new Blob([csv], { type: 'text/csv' });
-      const schema =
-        result.outputSchema ||
-        columns.map((col: string) => ({
-          name: col,
-          type: 'string',
-          nullable: true,
-        }));
       const csvFile = new File([csvBlob], `pipeline_output_${Date.now()}.csv`, { type: 'text/csv' });
       const dataset = await datasetAPI.upload(csvFile, projectId);
       setSavedDatasetName(dataset.name);
