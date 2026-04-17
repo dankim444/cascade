@@ -23,6 +23,93 @@ import { VisualizationNode } from './nodes/VisualizationNode';
 import { MLNode } from './nodes/MLNode';
 import { Play, Trash2, Eye } from 'lucide-react';
 
+const ESTIMATED_NODE_WIDTH = 220;
+const ESTIMATED_NODE_HEIGHT = 120;
+const NODE_PADDING = 16;
+const SEARCH_STEP = 30;
+const MAX_SEARCH_RADIUS = 360;
+
+const overlapsNode = (a: Node, b: Node): boolean => {
+  const aLeft = a.position.x;
+  const aRight = a.position.x + ESTIMATED_NODE_WIDTH;
+  const aTop = a.position.y;
+  const aBottom = a.position.y + ESTIMATED_NODE_HEIGHT;
+
+  const bLeft = b.position.x;
+  const bRight = b.position.x + ESTIMATED_NODE_WIDTH;
+  const bTop = b.position.y;
+  const bBottom = b.position.y + ESTIMATED_NODE_HEIGHT;
+
+  return !(
+    aRight + NODE_PADDING <= bLeft ||
+    bRight + NODE_PADDING <= aLeft ||
+    aBottom + NODE_PADDING <= bTop ||
+    bBottom + NODE_PADDING <= aTop
+  );
+};
+
+const hasCollision = (candidate: Node, nodes: Node[]): boolean =>
+  nodes.some((other) => other.id !== candidate.id && overlapsNode(candidate, other));
+
+const nearestNonOverlappingPosition = (node: Node, nodes: Node[]) => {
+  if (!hasCollision(node, nodes)) {
+    return node.position;
+  }
+
+  const originX = node.position.x;
+  const originY = node.position.y;
+
+  // Search in expanding "rings" around the dropped location.
+  for (let radius = SEARCH_STEP; radius <= MAX_SEARCH_RADIUS; radius += SEARCH_STEP) {
+    const candidates = [
+      { x: originX + radius, y: originY },
+      { x: originX - radius, y: originY },
+      { x: originX, y: originY + radius },
+      { x: originX, y: originY - radius },
+      { x: originX + radius, y: originY + radius },
+      { x: originX + radius, y: originY - radius },
+      { x: originX - radius, y: originY + radius },
+      { x: originX - radius, y: originY - radius },
+    ];
+
+    for (const pos of candidates) {
+      const candidateNode: Node = {
+        ...node,
+        position: pos,
+      };
+      if (!hasCollision(candidateNode, nodes)) {
+        return pos;
+      }
+    }
+  }
+
+  return node.position;
+};
+
+const smoothResolveDroppedNodeCollisions = (updatedNodes: Node[], changes: any[]): Node[] => {
+  const droppedNodeIds = new Set<string>(
+    (changes || [])
+      .filter(
+        (change: any) =>
+          change.type === 'position' &&
+          change.dragging === false &&
+          typeof change.id === 'string',
+      )
+      .map((change: any) => change.id),
+  );
+
+  if (droppedNodeIds.size === 0) {
+    return updatedNodes;
+  }
+
+  const adjustedNodes = updatedNodes.map((node) => ({ ...node, position: { ...node.position } }));
+  for (const node of adjustedNodes) {
+    if (!droppedNodeIds.has(node.id)) continue;
+    node.position = nearestNonOverlappingPosition(node, adjustedNodes);
+  }
+  return adjustedNodes;
+};
+
 const nodeTypes = {
   dataNode: DataNode,
   transformNode: TransformNode,
@@ -82,8 +169,9 @@ export const PipelineCanvas: React.FC<PipelineCanvasProps> = ({
     (changes: any) => {
       if (isReadOnly) return;
       const updated = applyNodeChanges(changes, nodesRef.current);
-      setNodes(updated);
-      onNodesChange?.(updated);
+      const collisionResolved = smoothResolveDroppedNodeCollisions(updated, changes || []);
+      setNodes(collisionResolved);
+      onNodesChange?.(collisionResolved);
     },
     [isReadOnly, onNodesChange, setNodes]
   );
