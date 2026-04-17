@@ -17,7 +17,6 @@ export const GraphConfigPanel: React.FC<GraphConfigPanelProps> = ({
 }) => {
   const [columns, setColumns] = useState<Column[]>([]);
   const [numericColumns, setNumericColumns] = useState<string[]>([]);
-  const [categoricalColumns, setCategoricalColumns] = useState<string[]>([]);
   const [graphTypes, setGraphTypes] = useState<GraphType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +40,6 @@ export const GraphConfigPanel: React.FC<GraphConfigPanelProps> = ({
       const columnsResponse = await graphAPI.getColumns(dataKey);
       setColumns(columnsResponse.columns);
       setNumericColumns(columnsResponse.numeric_columns);
-      setCategoricalColumns(columnsResponse.categorical_columns);
       
       // Fetch graph types
       const typesResponse = await graphAPI.getGraphTypes();
@@ -65,22 +63,28 @@ export const GraphConfigPanel: React.FC<GraphConfigPanelProps> = ({
     return columns.map(c => c.name);
   };
 
-  const renderField = (fieldName: string, isRequired: boolean = false) => {
-    const label = fieldName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-    const fieldType = fieldName.includes('y') || fieldName.includes('size') ? 'y' : 
+  type FieldEntry = GraphType['fields'][string];
+
+  const renderField = (fieldName: string, fieldConfig: FieldEntry) => {
+    const fieldType = fieldName.includes('y') || fieldName.includes('size') ? 'y' :
                      fieldName.includes('color') ? 'color' : 'x';
-    
+
     const options = getColumnOptions(fieldType);
-    const value = (config as any)[fieldName] || '';
+    const value = (config as unknown as Record<string, unknown>)[fieldName] || '';
 
     return (
       <div key={fieldName}>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          {label} {isRequired && <span className="text-red-500">*</span>}
+          {fieldConfig.label} {fieldConfig.required && <span className="text-red-500">*</span>}
         </label>
+        {fieldConfig.help ? (
+          <p className="text-xs text-gray-500 mb-2">{fieldConfig.help}</p>
+        ) : null}
         <select
-          value={value}
-          onChange={(e) => setConfig({ ...config, [fieldName]: e.target.value || undefined })}
+          value={typeof value === 'string' ? value : ''}
+          onChange={(e) =>
+            setConfig({ ...config, [fieldName]: e.target.value || undefined } as GraphConfig)
+          }
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
           <option value="">Select column...</option>
@@ -96,10 +100,11 @@ export const GraphConfigPanel: React.FC<GraphConfigPanelProps> = ({
 
   const isConfigValid = () => {
     if (!selectedGraphType) return false;
-    
-    return selectedGraphType.required.every(field => {
-      const value = (config as any)[field];
-      return value && value.trim() !== '';
+
+    return Object.entries(selectedGraphType.fields).every(([fieldName, fieldConfig]) => {
+      if (!fieldConfig.required) return true;
+      const value = (config as unknown as Record<string, unknown>)[fieldName];
+      return typeof value === 'string' && value.trim() !== '';
     });
   };
 
@@ -198,13 +203,21 @@ export const GraphConfigPanel: React.FC<GraphConfigPanelProps> = ({
             </div>
 
             {/* Dynamic Field Rendering */}
-            {selectedGraphType && (
+            {selectedGraphType && Object.keys(selectedGraphType.fields).length > 0 && (
               <div className="space-y-4">
-                {/* Required Fields */}
-                {selectedGraphType.required.map(field => renderField(field, true))}
-                
-                {/* Optional Fields */}
-                {selectedGraphType.optional.map(field => renderField(field, false))}
+                {Object.entries(selectedGraphType.fields)
+                  .filter(([, fieldConfig]) => fieldConfig.required)
+                  .map(([fieldName, fieldConfig]) => renderField(fieldName, fieldConfig))}
+                {Object.entries(selectedGraphType.fields).some(
+                  ([, fieldConfig]) => !fieldConfig.required
+                ) && (
+                  <>
+                    <h5 className="font-medium text-gray-700 text-sm">Optional fields</h5>
+                    {Object.entries(selectedGraphType.fields)
+                      .filter(([, fieldConfig]) => !fieldConfig.required)
+                      .map(([fieldName, fieldConfig]) => renderField(fieldName, fieldConfig))}
+                  </>
+                )}
               </div>
             )}
 

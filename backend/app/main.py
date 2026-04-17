@@ -1,5 +1,13 @@
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env before any import that reads DATABASE_URL (app.core.database).
+# override=True: backend/.env should win over a stale DATABASE_URL from the shell/IDE.
+_backend_root = Path(__file__).resolve().parent.parent
+load_dotenv(_backend_root / ".env", override=True)
+
 from fastapi import FastAPI, HTTPException, Depends
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
@@ -7,7 +15,6 @@ from datetime import datetime
 from pydantic import BaseModel
 import math
 import os
-from dotenv import load_dotenv
 from app.transformations.executor_fixed import TransformationExecutor
 from app.services.pipeline_validation import (
     prepare_pipeline_for_execution,
@@ -23,9 +30,7 @@ from app.api.routes.presence import router as presence_router
 from app.api.routes.datasets import router as datasets_router
 from app.api.routes.projects import router as projects_router
 from app.api.routes import router as api_router
-
-# Load environment variables from .env file
-load_dotenv()
+from app.middleware.permissive_cors import PermissiveCORSMiddleware
 
 app = FastAPI(
     title="Cascade API",
@@ -33,14 +38,8 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware to allow frontend connections
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS: echo Origin, handle OPTIONS, Private-Network preflight (e.g. localhost → EC2)
+app.add_middleware(PermissiveCORSMiddleware)
 
 # Include routers
 app.include_router(auth_router)

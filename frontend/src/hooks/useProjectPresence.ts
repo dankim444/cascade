@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { WS_BASE_URL } from '../config/apiBase';
 
 type PresenceUser = {
   userId: string;
@@ -80,8 +81,6 @@ type PresenceMessage =
   | { type: 'chat.message'; payload: ChatMessage }
   | { type: 'chat.history'; payload: { tab: string; messages: ChatMessage[] } }
   | { type: 'chat.error'; payload: { message: string } };
-
-const WS_BASE_URL = (import.meta as any).env?.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
 const getToken = (): string | null => {
   try {

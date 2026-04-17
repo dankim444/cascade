@@ -103,7 +103,7 @@ export const SimpleGraphConfigPanel: React.FC<SimpleGraphConfigPanelProps> = ({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dataset: {currentDataset?.filename || dataKey.replace('data_', '').substring(0, 8)}
+                Dataset: {currentDataset?.filename || currentDataset?.name || dataKey.replace('data_', '').substring(0, 8)}
               </label>
               <p className="text-sm text-gray-500">
                 {columns.length} columns • {currentDataset?.rowCount?.toLocaleString() || 0} rows

@@ -17,5 +17,6 @@ export type {
   GroupByConfig,
   JoinConfig,
   Aggregation,
-  TransformParams
+  TransformParams,
+  ChartType,
 } from './core';

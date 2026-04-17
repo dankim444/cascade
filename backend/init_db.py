@@ -1,6 +1,10 @@
 """
 Initialize the database - run this once to create tables
 """
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app.core.database import engine, Base
 from app.models import User, Project, ProjectShare, Dataset, Pipeline, SavedGraph
 
