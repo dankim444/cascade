@@ -487,12 +487,12 @@ async def presence_ws(websocket: WebSocket):
                         "payload": payload,
                     }, exclude=user_info["userId"])
             elif msg_type == "pipeline.execute":
-                if not (is_owner or permission == "admin"):
+                if not (is_owner or permission in ("admin", "edit")):
                     await websocket.send_json({
                         "type": "pipeline.status",
                         "payload": {
                             "status": "denied",
-                            "message": "Only admins can execute pipelines.",
+                            "message": "Only editors and admins can run pipelines.",
                         },
                     })
                     continue

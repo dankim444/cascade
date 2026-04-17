@@ -10,6 +10,7 @@ interface NodeExecutionResult {
   outputData?: any[];
   outputRows?: number;
   outputSchema?: any[];
+  ml_results?: any;
   error?: string;
   timestamp?: Date;
 }
@@ -56,7 +57,11 @@ interface WorkflowState {
   // Pipeline actions
   savePipeline: () => void;
   loadPipeline: (pipeline: PipelineType) => void;
-  executePipeline: (pipelineId?: string, projectId?: string) => Promise<any>;
+  executePipeline: (
+    pipelineId?: string,
+    projectId?: string,
+    options?: { persistOutputAsDataset?: boolean }
+  ) => Promise<any>;
   executeToNode: (
     nodeId: string,
     pipelineId?: string,
@@ -462,7 +467,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     }
   },
 
-  executePipeline: async (pipelineId?: string, projectId?: string) => {
+  executePipeline: async (
+    pipelineId?: string,
+    projectId?: string,
+    options?: { persistOutputAsDataset?: boolean }
+  ) => {
     const state = get();
     
     // Find all leaf nodes (nodes with no outgoing edges)
@@ -474,7 +483,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     if (leafNodes.length > 0) {
       const lastNode = leafNodes[leafNodes.length - 1];
       return get().executeToNode(lastNode.id, pipelineId, projectId, {
-        persistOutputAsDataset: true,
+        persistOutputAsDataset: options?.persistOutputAsDataset !== false,
       });
     }
     

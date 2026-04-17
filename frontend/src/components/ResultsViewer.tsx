@@ -5,6 +5,7 @@ import { datasetAPI } from '../services/api';
 interface ResultsViewerProps {
   result: any;
   onClose: () => void;
+  mode?: 'run' | 'check';
   projectId?: string;
   pipelineId?: string;
   pipelineName?: string;
@@ -15,12 +16,14 @@ interface ResultsViewerProps {
 export const ResultsViewer: React.FC<ResultsViewerProps> = ({
   result,
   onClose,
+  mode = 'run',
   projectId,
   pipelineId,
   pipelineName,
   onDatasetSaved,
   onDatasetRenamed,
 }) => {
+  const isCheckMode = mode === 'check';
   const isSuccess = result.status === 'success';
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -201,7 +204,9 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
             )}
             <div>
               <h2 className="text-xl font-bold">
-                {isSuccess ? 'Pipeline Executed Successfully!' : 'Pipeline Execution Failed'}
+                {isSuccess
+                  ? (isCheckMode ? 'Pipeline Check Complete' : 'Pipeline Executed Successfully!')
+                  : (isCheckMode ? 'Pipeline Check Failed' : 'Pipeline Execution Failed')}
               </h2>
               {isSuccess && (
                 <p className="text-sm opacity-90 mt-1">
@@ -273,51 +278,53 @@ export const ResultsViewer: React.FC<ResultsViewerProps> = ({
                 )}
               </div>
               
-              <div className="flex items-center space-x-2">
-                {(outputData.length > 0 || outputDataKey) && projectId && !savedDatasetName && !result.outputDataset && (
-                  <button
-                    onClick={handleSaveAsDataset}
-                    disabled={isSaving}
-                    className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                    title="Save the pipeline output as a dataset in this project"
-                  >
-                    {isSaving ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4" />
-                        <span>Save as Dataset</span>
-                      </>
-                    )}
-                  </button>
-                )}
-                {(outputData.length > 0 || canDownloadFullCsv) && (
-                  <button
-                    onClick={() => void downloadCSV()}
-                    disabled={isDownloadingCsv || (outputData.length === 0 && !canDownloadFullCsv)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={canDownloadFullCsv ? 'Full result CSV' : 'Preview CSV'}
-                  >
-                    {isDownloadingCsv ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                        <span>Downloading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4" />
-                        <span>{canDownloadFullCsv ? 'Download CSV' : 'Download preview CSV'}</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
+              {!isCheckMode && (
+                <div className="flex items-center space-x-2">
+                  {(outputData.length > 0 || outputDataKey) && projectId && !savedDatasetName && !result.outputDataset && (
+                    <button
+                      onClick={handleSaveAsDataset}
+                      disabled={isSaving}
+                      className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                      title="Save the pipeline output as a dataset in this project"
+                    >
+                      {isSaving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4" />
+                          <span>Save as Dataset</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {(outputData.length > 0 || canDownloadFullCsv) && (
+                    <button
+                      onClick={() => void downloadCSV()}
+                      disabled={isDownloadingCsv || (outputData.length === 0 && !canDownloadFullCsv)}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={canDownloadFullCsv ? 'Full result CSV' : 'Preview CSV'}
+                    >
+                      {isDownloadingCsv ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                          <span>Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          <span>{canDownloadFullCsv ? 'Download CSV' : 'Download preview CSV'}</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
-            {savedDatasetId && (
+            {!isCheckMode && savedDatasetId && (
               <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
                 <Edit2 className="h-4 w-4 text-gray-500" />
                 <input

@@ -75,6 +75,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   const [addNodeInfoKey, setAddNodeInfoKey] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [executionResult, setExecutionResult] = useState<any>(null);
+  const [resultsMode, setResultsMode] = useState<'run' | 'check'>('run');
   const [selectedFlowNode, setSelectedFlowNode] = useState<FlowNode | null>(null);
   const [showNodePreview, setShowNodePreview] = useState(false);
   const [nodePreviewData, setNodePreviewData] = useState<any>(null);
@@ -197,7 +198,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   });
 
   const isPipelineExecuting = pipelineStatus.status === 'running';
-  const canExecutePipeline = project?.isOwner !== false || project?.permission === 'admin';
+  const canRunPipeline = project?.isOwner !== false || project?.permission === 'edit' || project?.permission === 'admin';
+  const executePipelineLabel = canRunPipeline ? 'Run Pipeline' : 'Check Pipeline';
+  const executePipelineTitle = canRunPipeline
+    ? 'Execute entire pipeline and save output dataset'
+    : 'Check pipeline output without saving datasets';
 
   const visibleCursors = Object.values(cursors).filter((cursor) => (
     userTabs[cursor.userId] === activeTab
@@ -788,14 +793,11 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
   }, [flowNodes, locks, userId, isPipelineExecuting, validationErrorByNodeId]);
 
   const handleExecutePipeline = async () => {
-    if (!canExecutePipeline) {
-      alert('Only admins can execute pipelines in this project.');
-      return;
-    }
+    const mode: 'run' | 'check' = canRunPipeline ? 'run' : 'check';
     if (pipelineValidationErrors.length > 0) {
       alert(
         formatPipelineValidationError({
-          message: 'Fix pipeline validation errors before running.',
+          message: `Fix pipeline validation errors before ${canRunPipeline ? 'running' : 'checking'}.`,
           errors: pipelineValidationErrors,
         }),
       );
@@ -805,9 +807,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       alert('Pipeline execution is already running.');
       return;
     }
-    sendPipelineExecute();
+    if (canRunPipeline) {
+      sendPipelineExecute();
+    }
     try {
-      const result = await executePipeline(currentPipelineId || undefined, projectId);
+      const result = await executePipeline(currentPipelineId || undefined, projectId, {
+        persistOutputAsDataset: canRunPipeline,
+      });
       const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
       
       // Check if output dataset was saved
@@ -826,29 +832,32 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       }
       
       if (!hasMLResults) {
+        setResultsMode(mode);
         setExecutionResult(result);
         setShowResults(true);
       }
-      sendPipelineStatus('completed');
+      if (canRunPipeline) {
+        sendPipelineStatus('completed');
+      }
     } catch (error: any) {
+      setResultsMode(mode);
       setExecutionResult({
         status: 'error',
         error: error.message,
       });
       setShowResults(true);
-      sendPipelineStatus('failed', error.message);
+      if (canRunPipeline) {
+        sendPipelineStatus('failed', error.message);
+      }
     }
   };
 
   const handleExecuteFromNode = async (nodeId: string) => {
-    if (!canExecutePipeline) {
-      alert('Only admins can execute pipelines in this project.');
-      return;
-    }
+    const mode: 'run' | 'check' = canRunPipeline ? 'run' : 'check';
     if (pipelineValidationErrors.length > 0) {
       alert(
         formatPipelineValidationError({
-          message: 'Fix pipeline validation errors before running.',
+          message: `Fix pipeline validation errors before ${canRunPipeline ? 'running' : 'checking'}.`,
           errors: pipelineValidationErrors,
         }),
       );
@@ -858,9 +867,13 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       alert('Pipeline execution is already running.');
       return;
     }
-    sendPipelineExecute();
+    if (canRunPipeline) {
+      sendPipelineExecute();
+    }
     try {
-      const result = await executeToNode(nodeId, currentPipelineId || undefined, projectId);
+      const result = await executeToNode(nodeId, currentPipelineId || undefined, projectId, {
+        persistOutputAsDataset: canRunPipeline,
+      });
       const hasMLResults = result.executionResults?.some((r: any) => r.ml_results);
       
       // Check if output dataset was saved
@@ -879,17 +892,23 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       }
       
       if (!hasMLResults) {
+        setResultsMode(mode);
         setExecutionResult(result);
         setShowResults(true);
       }
-      sendPipelineStatus('completed');
+      if (canRunPipeline) {
+        sendPipelineStatus('completed');
+      }
     } catch (error: any) {
+      setResultsMode(mode);
       setExecutionResult({
         status: 'error',
         error: error.message,
       });
       setShowResults(true);
-      sendPipelineStatus('failed', error.message);
+      if (canRunPipeline) {
+        sendPipelineStatus('failed', error.message);
+      }
     }
   };
 
@@ -2114,6 +2133,8 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
                   onDeleteNode={handleDeleteNode}
                   isReadOnly={isPipelineExecuting}
                   pipelineActionsDisabled={pipelineValidationErrors.length > 0}
+                  executePipelineLabel={executePipelineLabel}
+                  executePipelineTitle={executePipelineTitle}
                 />
               )}
             </div>
@@ -2277,6 +2298,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({ projectId })
       {showResults && executionResult && (
         <ResultsViewer 
           result={executionResult} 
+          mode={resultsMode}
           onClose={() => setShowResults(false)}
           projectId={projectId}
           pipelineId={currentPipelineId || undefined}
